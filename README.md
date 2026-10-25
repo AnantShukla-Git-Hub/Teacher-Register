@@ -30,7 +30,7 @@ Teacher Register replicates the feel of a traditional classroom register ledger 
 - **Frontend**: React 19, Vite, Tailwind CSS v4
 - **Backend**: Node.js, Express
 - **Real-Time Engine**: Socket.IO (channel-scoped WebSocket subscriptions)
-- **Database**: SQLite (better-sqlite3)
+- **Database**: Dual Engine — SQLite (`better-sqlite3`) for local development & Cloud PostgreSQL (`pg`) for permanent cloud data persistence across deploys
 - **Authentication**: Google OAuth 2.0 (google-auth-library) with JWT session tokens
 
 ---
@@ -80,6 +80,7 @@ PORT=5000
 NODE_ENV=development
 JWT_SECRET=your-secret-key-here
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+DATABASE_URL=postgres://user:password@host/dbname  # Optional: For permanent cloud persistence across deploys
 ```
 
 ---

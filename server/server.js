@@ -151,7 +151,7 @@ app.post('/api/auth/google', async (req, res) => {
 
     // Lookup or register teacher
     const checkStmt = db.prepare('SELECT id, email, name, picture FROM teachers WHERE email = ?');
-    let teacher = checkStmt.get(email);
+    let teacher = await checkStmt.get(email);
     let isNewUser = false;
 
     if (!teacher) {
@@ -160,7 +160,7 @@ app.post('/api/auth/google', async (req, res) => {
       const insertStmt = db.prepare(
         'INSERT INTO teachers (id, email, name, picture) VALUES (?, ?, ?, ?)'
       );
-      insertStmt.run(teacherId, email, name, picture);
+      await insertStmt.run(teacherId, email, name, picture);
       teacher = { id: teacherId, email, name, picture };
     }
 
@@ -188,14 +188,14 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // Update Teacher Profile Name
-app.post('/api/auth/update-name', authenticateTeacher, (req, res) => {
+app.post('/api/auth/update-name', authenticateTeacher, async (req, res) => {
   const { name } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'Valid name is required.' });
   }
 
   const cleanName = name.trim().slice(0, 100);
-  db.prepare('UPDATE teachers SET name = ? WHERE id = ?').run(cleanName, req.teacher.id);
+  await db.prepare('UPDATE teachers SET name = ? WHERE id = ?').run(cleanName, req.teacher.id);
 
   const token = jwt.sign(
     { id: req.teacher.id, email: req.teacher.email, name: cleanName, role: 'teacher' },
@@ -215,8 +215,8 @@ app.post('/api/auth/update-name', authenticateTeacher, (req, res) => {
 });
 
 // Get Current Profile
-app.get('/api/auth/me', authenticateTeacher, (req, res) => {
-  const teacher = db.prepare('SELECT id, email, name, picture, created_at FROM teachers WHERE id = ?').get(req.teacher.id);
+app.get('/api/auth/me', authenticateTeacher, async (req, res) => {
+  const teacher = await db.prepare('SELECT id, email, name, picture, created_at FROM teachers WHERE id = ?').get(req.teacher.id);
   if (!teacher) {
     return res.status(404).json({ error: 'Teacher profile not found.' });
   }
@@ -228,7 +228,7 @@ app.get('/api/auth/me', authenticateTeacher, (req, res) => {
 // ==========================================
 
 // Get all classrooms for teacher
-app.get('/api/classrooms', authenticateTeacher, (req, res) => {
+app.get('/api/classrooms', authenticateTeacher, async (req, res) => {
   const stmt = db.prepare(`
     SELECT c.*, 
       (SELECT COUNT(*) FROM students s WHERE s.classroom_id = c.id) as student_count,
@@ -237,12 +237,17 @@ app.get('/api/classrooms', authenticateTeacher, (req, res) => {
     WHERE c.teacher_id = ? 
     ORDER BY c.created_at DESC
   `);
-  const classrooms = stmt.all(req.teacher.id);
+  const rawClassrooms = await stmt.all(req.teacher.id);
+  const classrooms = rawClassrooms.map(c => ({
+    ...c,
+    student_count: Number(c.student_count) || 0,
+    total_sessions: Number(c.total_sessions) || 0
+  }));
   return res.json({ classrooms });
 });
 
 // Create classroom
-app.post('/api/classrooms', authenticateTeacher, (req, res) => {
+app.post('/api/classrooms', authenticateTeacher, async (req, res) => {
   const { name, subject = '', roomId, roomPassword } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -262,13 +267,13 @@ app.post('/api/classrooms', authenticateTeacher, (req, res) => {
   }
 
   // Check unique room ID
-  const existing = db.prepare('SELECT id FROM classrooms WHERE room_id = ?').get(cleanRoomId);
+  const existing = await db.prepare('SELECT id FROM classrooms WHERE room_id = ?').get(cleanRoomId);
   if (existing) {
     return res.status(400).json({ error: `Room ID '${cleanRoomId}' is already registered. Please choose another.` });
   }
 
   const id = crypto.randomUUID();
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO classrooms (id, teacher_id, name, subject, room_id, room_password)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(id, req.teacher.id, name.trim().slice(0, 120), subject.trim().slice(0, 100), cleanRoomId, roomPassword.trim());
@@ -278,28 +283,29 @@ app.post('/api/classrooms', authenticateTeacher, (req, res) => {
     INSERT INTO custom_columns (id, classroom_id, title, column_type, order_index)
     VALUES (?, ?, ?, 'text', ?)
   `);
-  colStmt.run(crypto.randomUUID(), id, 'Assignment 1', 0);
-  colStmt.run(crypto.randomUUID(), id, 'Class Test 1 Marks', 1);
+  await colStmt.run(crypto.randomUUID(), id, 'Assignment 1', 0);
+  await colStmt.run(crypto.randomUUID(), id, 'Class Test 1 Marks', 1);
 
-  const newClassroom = db.prepare('SELECT * FROM classrooms WHERE id = ?').get(id);
+  const newClassroom = await db.prepare('SELECT * FROM classrooms WHERE id = ?').get(id);
   return res.status(201).json({ classroom: newClassroom });
 });
 
 // Delete classroom
-app.delete('/api/classrooms/:id', authenticateTeacher, (req, res) => {
+app.delete('/api/classrooms/:id', authenticateTeacher, async (req, res) => {
   const { id } = req.params;
-  const classroom = db.prepare('SELECT id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found or unauthorized.' });
   }
 
-  db.prepare('DELETE FROM classrooms WHERE id = ?').run(id);
+  await db.prepare('DELETE FROM classrooms WHERE id = ?').run(id);
   return res.json({ success: true });
 });
 
 // Helper to guarantee standard UTC ISO-8601 timestamps
 function normalizeIsoTimestamp(ts) {
   if (!ts) return new Date().toISOString();
+  if (ts instanceof Date) return ts.toISOString();
   const str = String(ts).trim();
   if (str.includes('T')) {
     return str.endsWith('Z') ? str : `${str}Z`;
@@ -308,17 +314,17 @@ function normalizeIsoTimestamp(ts) {
 }
 
 // Get classroom register details (Teacher view)
-app.get('/api/classrooms/:id', authenticateTeacher, (req, res) => {
+app.get('/api/classrooms/:id', authenticateTeacher, async (req, res) => {
   const { id } = req.params;
-  const classroom = db.prepare('SELECT * FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT * FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found or unauthorized.' });
   }
 
-  const students = db.prepare('SELECT * FROM students WHERE classroom_id = ? ORDER BY CAST(roll_no AS INTEGER) ASC, roll_no ASC').all(id);
-  const customColumns = db.prepare('SELECT * FROM custom_columns WHERE classroom_id = ? ORDER BY order_index ASC, created_at ASC').all(id);
-  const rawAttendance = db.prepare('SELECT student_id, date, status, updated_at FROM attendance_records WHERE classroom_id = ?').all(id);
-  const rawMarks = db.prepare('SELECT student_id, column_id, value, updated_at FROM student_marks WHERE classroom_id = ?').all(id);
+  const students = await db.prepare('SELECT * FROM students WHERE classroom_id = ? ORDER BY CAST(roll_no AS INTEGER) ASC, roll_no ASC').all(id);
+  const customColumns = await db.prepare('SELECT * FROM custom_columns WHERE classroom_id = ? ORDER BY order_index ASC, created_at ASC').all(id);
+  const rawAttendance = await db.prepare('SELECT student_id, date, status, updated_at FROM attendance_records WHERE classroom_id = ?').all(id);
+  const rawMarks = await db.prepare('SELECT student_id, column_id, value, updated_at FROM student_marks WHERE classroom_id = ?').all(id);
 
   const attendance = rawAttendance.map(a => ({ ...a, updated_at: normalizeIsoTimestamp(a.updated_at) }));
   const marks = rawMarks.map(m => ({ ...m, updated_at: normalizeIsoTimestamp(m.updated_at) }));
@@ -337,11 +343,11 @@ app.get('/api/classrooms/:id', authenticateTeacher, (req, res) => {
 // ==========================================
 
 // Add / Import students (bulk CSV or single)
-app.post('/api/classrooms/:id/students', authenticateTeacher, (req, res) => {
+app.post('/api/classrooms/:id/students', authenticateTeacher, async (req, res) => {
   const { id } = req.params;
   const { students } = req.body;
 
-  const classroom = db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found.' });
   }
@@ -354,14 +360,13 @@ app.post('/api/classrooms/:id/students', authenticateTeacher, (req, res) => {
     return res.status(400).json({ error: 'Batch import limit exceeded (maximum 2,000 students per upload).' });
   }
 
-  const insertStmt = db.prepare(`
-    INSERT INTO students (id, classroom_id, roll_no, name)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(classroom_id, roll_no) DO UPDATE SET name = excluded.name
-  `);
-
-  const insertBatch = db.transaction((list) => {
+  const insertBatch = db.transaction(async (list, txDb) => {
     let count = 0;
+    const stmt = txDb.prepare(`
+      INSERT INTO students (id, classroom_id, roll_no, name)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(classroom_id, roll_no) DO UPDATE SET name = excluded.name
+    `);
     for (const s of list) {
       const rawRoll = s.roll_no || s.rollNo || s.roll;
       const rawName = s.name || s.student_name;
@@ -369,15 +374,15 @@ app.post('/api/classrooms/:id/students', authenticateTeacher, (req, res) => {
       const cleanRoll = String(rawRoll).trim().slice(0, 50);
       const cleanName = String(rawName).trim().slice(0, 100);
       if (cleanRoll && cleanName) {
-        insertStmt.run(crypto.randomUUID(), id, cleanRoll, cleanName);
+        await stmt.run(crypto.randomUUID(), id, cleanRoll, cleanName);
         count++;
       }
     }
     return count;
   });
 
-  const addedCount = insertBatch(students);
-  const updatedStudents = db.prepare('SELECT * FROM students WHERE classroom_id = ? ORDER BY CAST(roll_no AS INTEGER) ASC, roll_no ASC').all(id);
+  const addedCount = await insertBatch(students);
+  const updatedStudents = await db.prepare('SELECT * FROM students WHERE classroom_id = ? ORDER BY CAST(roll_no AS INTEGER) ASC, roll_no ASC').all(id);
 
   return res.json({
     success: true,
@@ -387,14 +392,14 @@ app.post('/api/classrooms/:id/students', authenticateTeacher, (req, res) => {
 });
 
 // Delete student
-app.delete('/api/classrooms/:id/students/:studentId', authenticateTeacher, (req, res) => {
+app.delete('/api/classrooms/:id/students/:studentId', authenticateTeacher, async (req, res) => {
   const { id, studentId } = req.params;
-  const classroom = db.prepare('SELECT id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found.' });
   }
 
-  db.prepare('DELETE FROM students WHERE id = ? AND classroom_id = ?').run(studentId, id);
+  await db.prepare('DELETE FROM students WHERE id = ? AND classroom_id = ?').run(studentId, id);
   return res.json({ success: true });
 });
 
@@ -403,7 +408,7 @@ app.delete('/api/classrooms/:id/students/:studentId', authenticateTeacher, (req,
 // ==========================================
 
 // Add evaluation column
-app.post('/api/classrooms/:id/columns', authenticateTeacher, (req, res) => {
+app.post('/api/classrooms/:id/columns', authenticateTeacher, async (req, res) => {
   const { id } = req.params;
   const { title } = req.body;
 
@@ -411,23 +416,23 @@ app.post('/api/classrooms/:id/columns', authenticateTeacher, (req, res) => {
     return res.status(400).json({ error: 'Column title is required.' });
   }
 
-  const classroom = db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found.' });
   }
 
-  const maxOrder = db.prepare('SELECT MAX(order_index) as max_idx FROM custom_columns WHERE classroom_id = ?').get(id);
-  const nextOrder = (maxOrder && maxOrder.max_idx !== null) ? maxOrder.max_idx + 1 : 0;
+  const maxOrder = await db.prepare('SELECT MAX(order_index) as max_idx FROM custom_columns WHERE classroom_id = ?').get(id);
+  const nextOrder = (maxOrder && maxOrder.max_idx !== null && maxOrder.max_idx !== undefined) ? Number(maxOrder.max_idx) + 1 : 0;
 
   const colId = crypto.randomUUID();
   const cleanTitle = title.trim().slice(0, 80);
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO custom_columns (id, classroom_id, title, column_type, order_index)
     VALUES (?, ?, ?, 'text', ?)
   `).run(colId, id, cleanTitle, nextOrder);
 
-  const newColumn = db.prepare('SELECT * FROM custom_columns WHERE id = ?').get(colId);
+  const newColumn = await db.prepare('SELECT * FROM custom_columns WHERE id = ?').get(colId);
 
   // Notify teacher sessions
   io.to(`room:${classroom.room_id}:teachers`).emit('column_added', {
@@ -439,14 +444,14 @@ app.post('/api/classrooms/:id/columns', authenticateTeacher, (req, res) => {
 });
 
 // Delete evaluation column
-app.delete('/api/classrooms/:id/columns/:colId', authenticateTeacher, (req, res) => {
+app.delete('/api/classrooms/:id/columns/:colId', authenticateTeacher, async (req, res) => {
   const { id, colId } = req.params;
-  const classroom = db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found.' });
   }
 
-  db.prepare('DELETE FROM custom_columns WHERE id = ? AND classroom_id = ?').run(colId, id);
+  await db.prepare('DELETE FROM custom_columns WHERE id = ? AND classroom_id = ?').run(colId, id);
 
   io.to(`room:${classroom.room_id}:teachers`).emit('column_deleted', {
     classroomId: id,
@@ -463,7 +468,7 @@ app.delete('/api/classrooms/:id/columns/:colId', authenticateTeacher, (req, res)
 const VALID_STATUSES = new Set(['PRESENT', 'ABSENT', 'LATE', 'NONE']);
 
 // Mark / Update Attendance
-app.post('/api/classrooms/:id/attendance', authenticateTeacher, (req, res) => {
+app.post('/api/classrooms/:id/attendance', authenticateTeacher, async (req, res) => {
   const { id } = req.params;
   const { student_id, date, status } = req.body;
 
@@ -471,12 +476,12 @@ app.post('/api/classrooms/:id/attendance', authenticateTeacher, (req, res) => {
     return res.status(400).json({ error: 'Valid student ID, ISO date, and attendance status required.' });
   }
 
-  const classroom = db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found.' });
   }
 
-  const student = db.prepare('SELECT roll_no FROM students WHERE id = ? AND classroom_id = ?').get(student_id, id);
+  const student = await db.prepare('SELECT roll_no FROM students WHERE id = ? AND classroom_id = ?').get(student_id, id);
   if (!student) {
     return res.status(404).json({ error: 'Student not found in this classroom.' });
   }
@@ -491,7 +496,7 @@ app.post('/api/classrooms/:id/attendance', authenticateTeacher, (req, res) => {
       updated_at = excluded.updated_at
   `);
 
-  upsertStmt.run(recordId, id, student_id, date, status, nowIso);
+  await upsertStmt.run(recordId, id, student_id, date, status, nowIso);
   const record = {
     id: recordId,
     classroom_id: id,
@@ -523,7 +528,7 @@ app.post('/api/classrooms/:id/attendance', authenticateTeacher, (req, res) => {
 });
 
 // Bulk Attendance (Mark All Present)
-app.post('/api/classrooms/:id/attendance/bulk', authenticateTeacher, (req, res) => {
+app.post('/api/classrooms/:id/attendance/bulk', authenticateTeacher, async (req, res) => {
   const { id } = req.params;
   const { date, status, student_ids } = req.body;
 
@@ -531,12 +536,12 @@ app.post('/api/classrooms/:id/attendance/bulk', authenticateTeacher, (req, res) 
     return res.status(400).json({ error: 'Valid date and status required.' });
   }
 
-  const classroom = db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found.' });
   }
 
-  const allStudents = db.prepare('SELECT id, roll_no FROM students WHERE classroom_id = ?').all(id);
+  const allStudents = await db.prepare('SELECT id, roll_no FROM students WHERE classroom_id = ?').all(id);
   let targetStudents = allStudents;
 
   if (Array.isArray(student_ids) && student_ids.length > 0) {
@@ -545,21 +550,21 @@ app.post('/api/classrooms/:id/attendance/bulk', authenticateTeacher, (req, res) 
   }
 
   const nowIso = new Date().toISOString();
-  const upsertStmt = db.prepare(`
-    INSERT INTO attendance_records (id, classroom_id, student_id, date, status, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(classroom_id, student_id, date) DO UPDATE SET 
-      status = excluded.status,
-      updated_at = excluded.updated_at
-  `);
 
-  const runBulk = db.transaction((list) => {
+  const runBulk = db.transaction(async (list, txDb) => {
+    const stmt = txDb.prepare(`
+      INSERT INTO attendance_records (id, classroom_id, student_id, date, status, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(classroom_id, student_id, date) DO UPDATE SET 
+        status = excluded.status,
+        updated_at = excluded.updated_at
+    `);
     for (const s of list) {
-      upsertStmt.run(crypto.randomUUID(), id, s.id, date, status, nowIso);
+      await stmt.run(crypto.randomUUID(), id, s.id, date, status, nowIso);
     }
   });
 
-  runBulk(targetStudents);
+  await runBulk(targetStudents);
 
   const cleanRoom = classroom.room_id.toUpperCase();
   const updatedAt = nowIso;
@@ -589,7 +594,7 @@ app.post('/api/classrooms/:id/attendance/bulk', authenticateTeacher, (req, res) 
 });
 
 // Update Student Evaluation Marks
-app.post('/api/classrooms/:id/marks', authenticateTeacher, (req, res) => {
+app.post('/api/classrooms/:id/marks', authenticateTeacher, async (req, res) => {
   const { id } = req.params;
   const { student_id, column_id, value } = req.body;
 
@@ -597,12 +602,12 @@ app.post('/api/classrooms/:id/marks', authenticateTeacher, (req, res) => {
     return res.status(400).json({ error: 'Student ID and column ID are required.' });
   }
 
-  const classroom = db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
+  const classroom = await db.prepare('SELECT room_id FROM classrooms WHERE id = ? AND teacher_id = ?').get(id, req.teacher.id);
   if (!classroom) {
     return res.status(404).json({ error: 'Classroom not found.' });
   }
 
-  const student = db.prepare('SELECT roll_no FROM students WHERE id = ? AND classroom_id = ?').get(student_id, id);
+  const student = await db.prepare('SELECT roll_no FROM students WHERE id = ? AND classroom_id = ?').get(student_id, id);
   if (!student) {
     return res.status(404).json({ error: 'Student not found in classroom.' });
   }
@@ -618,7 +623,7 @@ app.post('/api/classrooms/:id/marks', authenticateTeacher, (req, res) => {
       updated_at = excluded.updated_at
   `);
 
-  upsertStmt.run(crypto.randomUUID(), id, student_id, column_id, cleanValue, nowIso);
+  await upsertStmt.run(crypto.randomUUID(), id, student_id, column_id, cleanValue, nowIso);
 
   const cleanRoom = classroom.room_id.toUpperCase();
   const cleanRoll = student.roll_no.toUpperCase();
@@ -646,7 +651,7 @@ app.post('/api/classrooms/:id/marks', authenticateTeacher, (req, res) => {
 // STUDENT PORTAL (SECURE & READ-ONLY)
 // ==========================================
 
-app.post('/api/student/join', (req, res) => {
+app.post('/api/student/join', async (req, res) => {
   const ip = req.ip || req.connection.remoteAddress || 'unknown';
 
   if (!checkRateLimit(ip)) {
@@ -666,7 +671,7 @@ app.post('/api/student/join', (req, res) => {
   const cleanRoll = String(rollNo).trim().toUpperCase();
 
   // Verify classroom existence and credentials
-  const roomMatch = db.prepare(`
+  const roomMatch = await db.prepare(`
     SELECT c.id, c.name, c.subject, c.room_id, c.room_password, t.name as teacher_name
     FROM classrooms c
     JOIN teachers t ON c.teacher_id = t.id
@@ -692,7 +697,7 @@ app.post('/api/student/join', (req, res) => {
   const classroom = roomMatch;
 
   // Fetch all students in this classroom ordered by numeric value then alphanumeric
-  const allStudents = db.prepare(`
+  const allStudents = await db.prepare(`
     SELECT id, roll_no, name
     FROM students
     WHERE classroom_id = ?
@@ -786,7 +791,7 @@ app.post('/api/student/join', (req, res) => {
   );
 
   // Fetch classroom evaluation schema
-  const customColumns = db.prepare(`
+  const customColumns = await db.prepare(`
     SELECT id, title, column_type, order_index
     FROM custom_columns
     WHERE classroom_id = ?
@@ -794,7 +799,7 @@ app.post('/api/student/join', (req, res) => {
   `).all(classroom.id);
 
   // Fetch strictly this student's attendance records
-  const rawAttendance = db.prepare(`
+  const rawAttendance = await db.prepare(`
     SELECT date, status, updated_at
     FROM attendance_records
     WHERE classroom_id = ? AND student_id = ?
@@ -803,16 +808,16 @@ app.post('/api/student/join', (req, res) => {
   const attendance = rawAttendance.map(a => ({ ...a, updated_at: normalizeIsoTimestamp(a.updated_at) }));
 
   // Fetch total distinct session count
-  const totalSessionsRow = db.prepare(`
+  const totalSessionsRow = await db.prepare(`
     SELECT COUNT(DISTINCT date) as total_days
     FROM attendance_records
     WHERE classroom_id = ?
   `).get(classroom.id);
 
-  const totalSessions = totalSessionsRow ? totalSessionsRow.total_days : 0;
+  const totalSessions = totalSessionsRow ? (Number(totalSessionsRow.total_days) || 0) : 0;
 
   // Fetch strictly this student's marks
-  const rawMarks = db.prepare(`
+  const rawMarks = await db.prepare(`
     SELECT column_id, value, updated_at
     FROM student_marks
     WHERE classroom_id = ? AND student_id = ?
@@ -857,7 +862,17 @@ app.use((req, res, next) => {
 });
 
 // Start server
-server.listen(PORT, () => {
-  console.log(`[SERVER] Listening on port ${PORT}`);
-  console.log(`[WEBSOCKET] Real-time engine active`);
-});
+async function startServer() {
+  try {
+    await db.ready;
+    server.listen(PORT, () => {
+      console.log(`[SERVER] Listening on port ${PORT}`);
+      console.log(`[WEBSOCKET] Real-time engine active`);
+    });
+  } catch (err) {
+    console.error('[SERVER ERROR] Failed to start server:', err.message);
+    process.exit(1);
+  }
+}
+
+startServer();
