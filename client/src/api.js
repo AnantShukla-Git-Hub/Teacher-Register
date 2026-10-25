@@ -42,8 +42,12 @@ async function request(url, options = {}) {
     headers,
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && !url.includes('/student/join') && !url.includes('/auth/google')) {
+      setAuthToken('');
+      setStoredTeacher(null);
+    }
     throw new Error(data.error || 'Server request failed');
   }
   return data;

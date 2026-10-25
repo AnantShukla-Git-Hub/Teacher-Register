@@ -16,12 +16,17 @@ export default function StudentPortal({ initialData, onLeave }) {
 
     const roomId = classroom.room_id.toUpperCase();
 
-    socket.emit('join_classroom', {
-      token: initialData.token,
-      role: 'student',
-      roomId,
-      rollNo: student.roll_no,
-    });
+    const joinRoom = () => {
+      socket.emit('join_classroom', {
+        token: initialData.token,
+        role: 'student',
+        roomId,
+        rollNo: student.roll_no,
+      });
+    };
+
+    joinRoom();
+    socket.on('connect', joinRoom);
 
     const handleAttendanceUpdated = (payload) => {
       if (
@@ -86,6 +91,7 @@ export default function StudentPortal({ initialData, onLeave }) {
     socket.on('column_deleted', handleColumnDeleted);
 
     return () => {
+      socket.off('connect', joinRoom);
       socket.off('attendance_updated', handleAttendanceUpdated);
       socket.off('marks_updated', handleMarksUpdated);
       socket.off('column_added', handleColumnAdded);
@@ -93,11 +99,12 @@ export default function StudentPortal({ initialData, onLeave }) {
     };
   }, [classroom?.room_id, student.id, student.roll_no, initialData.token]);
 
-  // Statistics
-  const presentDays = attendance.filter((a) => a.status === 'PRESENT').length;
-  const lateDays = attendance.filter((a) => a.status === 'LATE').length;
-  const absentDays = attendance.filter((a) => a.status === 'ABSENT').length;
-  const totalClassesRecorded = attendance.length;
+  // Attendance statistics (only count active recorded sessions: P, A, L)
+  const validRecords = attendance.filter((a) => a.status === 'PRESENT' || a.status === 'ABSENT' || a.status === 'LATE');
+  const presentDays = validRecords.filter((a) => a.status === 'PRESENT').length;
+  const lateDays = validRecords.filter((a) => a.status === 'LATE').length;
+  const absentDays = validRecords.filter((a) => a.status === 'ABSENT').length;
+  const totalClassesRecorded = validRecords.length;
   const attendedCount = presentDays + lateDays;
   const attendancePercentage =
     totalClassesRecorded > 0 ? Math.round((attendedCount / totalClassesRecorded) * 100) : 100;

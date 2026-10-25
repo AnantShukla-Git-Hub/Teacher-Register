@@ -8,8 +8,14 @@ export default function ClassroomRegister({ classroomId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Selected date (defaults to Today YYYY-MM-DD)
-  const getTodayDate = () => new Date().toISOString().split('T')[0];
+  // Selected date in local timezone (avoids UTC drift)
+  const getTodayDate = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
 
   // Filter input
@@ -56,11 +62,16 @@ export default function ClassroomRegister({ classroomId, onBack }) {
     const roomId = data.classroom.room_id.toUpperCase();
     const token = getAuthToken();
 
-    socket.emit('join_classroom', {
-      token,
-      role: 'teacher',
-      roomId,
-    });
+    const joinRoom = () => {
+      socket.emit('join_classroom', {
+        token,
+        role: 'teacher',
+        roomId,
+      });
+    };
+
+    joinRoom();
+    socket.on('connect', joinRoom);
 
     const handleAttendanceUpdated = (payload) => {
       if (payload.classroomId === classroomId) {
@@ -122,6 +133,7 @@ export default function ClassroomRegister({ classroomId, onBack }) {
     socket.on('marks_updated', handleMarksUpdated);
 
     return () => {
+      socket.off('connect', joinRoom);
       socket.off('attendance_updated', handleAttendanceUpdated);
       socket.off('marks_updated', handleMarksUpdated);
     };
@@ -230,11 +242,15 @@ export default function ClassroomRegister({ classroomId, onBack }) {
     }
   };
 
-  // Date navigation
+  // Date navigation using local date components
   const shiftDate = (days) => {
-    const cur = new Date(selectedDate);
+    const parts = selectedDate.split('-').map(Number);
+    const cur = new Date(parts[0], parts[1] - 1, parts[2]);
     cur.setDate(cur.getDate() + days);
-    setSelectedDate(cur.toISOString().split('T')[0]);
+    const year = cur.getFullYear();
+    const month = String(cur.getMonth() + 1).padStart(2, '0');
+    const day = String(cur.getDate()).padStart(2, '0');
+    setSelectedDate(`${year}-${month}-${day}`);
   };
 
   const formatDateDisplay = (isoStr) => {
@@ -322,10 +338,12 @@ export default function ClassroomRegister({ classroomId, onBack }) {
 
       const normalized = parsed.data
         .map((row) => {
-          const rollKey = Object.keys(row).find((k) => /roll|id|number/i.test(k));
-          const nameKey = Object.keys(row).find((k) => /name|student/i.test(k));
-          const rollNo = rollKey ? String(row[rollKey]).trim() : '';
+          const rollKey = Object.keys(row).find((k) => /roll|id|number|s\.?no|reg/i.test(k.trim()));
+          const nameKey = Object.keys(row).find((k) => /name|student/i.test(k.trim()));
+          let rollNo = rollKey ? String(row[rollKey]).trim() : '';
           const name = nameKey ? String(row[nameKey]).trim() : '';
+          // Clean decimal artifacts if exported from Excel (e.g. 1.0 -> 1)
+          rollNo = rollNo.replace(/\.0+$/, '');
           return rollNo && name ? { rollNo, name } : null;
         })
         .filter(Boolean);
