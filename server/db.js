@@ -27,7 +27,12 @@ if (DATABASE_URL) {
     let paramIndex = 0;
     return sql
       .replace(/\?/g, () => `$${++paramIndex}`)
-      .replace(/CAST\(roll_no AS INTEGER\)/gi, "NULLIF(regexp_replace(roll_no, '\\D', '', 'g'), '')::bigint NULLS LAST");
+      .replace(/ORDER\s+BY\s+CAST\(roll_no\s+AS\s+INTEGER\)\s+ASC,\s*roll_no\s+ASC/gi,
+        "ORDER BY NULLIF(regexp_replace(roll_no, '\\D', '', 'g'), '')::bigint ASC NULLS LAST, roll_no ASC")
+      .replace(/CAST\(roll_no\s+AS\s+INTEGER\)\s+ASC/gi,
+        "NULLIF(regexp_replace(roll_no, '\\D', '', 'g'), '')::bigint ASC NULLS LAST")
+      .replace(/CAST\(roll_no\s+AS\s+INTEGER\)/gi,
+        "NULLIF(regexp_replace(roll_no, '\\D', '', 'g'), '')::bigint");
   }
 
   function cleanParams(params) {
