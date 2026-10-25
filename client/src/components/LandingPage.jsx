@@ -56,8 +56,8 @@ export default function LandingPage({ onTeacherLogin, onStudentEnter }) {
       {/* HEADER */}
       <header className="archival-header">
         <span className="sf brand">Teacher Register</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <span className="mu" style={{ fontSize: '14px' }}>Classroom attendance and continuous assessment</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <span className="mu" style={{ fontSize: '13px' }}>Classroom attendance & assessment</span>
           <button 
             type="button" 
             className="lk lk-sm" 
@@ -71,11 +71,11 @@ export default function LandingPage({ onTeacherLogin, onStudentEnter }) {
 
       {/* SYSTEM GUIDE DRAWER (IF TOGGLED) */}
       {showDocs && (
-        <section style={{ borderBottom: '1px solid var(--ink)', padding: '32px 56px', backgroundColor: '#EDE8DE' }}>
-          <div style={{ maxWidth: '960px' }}>
+        <section style={{ borderBottom: '1px solid var(--ink)', padding: '24px 20px', backgroundColor: '#EDE8DE' }}>
+          <div style={{ maxWidth: '960px', margin: '0 auto' }}>
             <span className="lb">System Guide & Verification Standards</span>
             <h2 style={{ fontSize: '24px', margin: '8px 0 16px' }}>Operating Rules & Access Architecture</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', fontSize: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', fontSize: '14px' }}>
               <div>
                 <b style={{ fontWeight: 600 }}>1. For Teachers</b>
                 <p className="mu" style={{ margin: '6px 0 0' }}>
@@ -100,9 +100,9 @@ export default function LandingPage({ onTeacherLogin, onStudentEnter }) {
       )}
 
       {/* HERO SECTION */}
-      <section style={{ padding: '72px 56px 56px', maxWidth: '900px' }}>
-        <h1 style={{ fontSize: '64px', lineHeight: 1.05 }}>Attendance and marks, kept the way a register is kept.</h1>
-        <p className="mu" style={{ fontSize: '18px', maxWidth: '620px', margin: '24px 0 0' }}>
+      <section className="hero-section">
+        <h1 className="hero-title">Attendance and marks, kept the way a register is kept.</h1>
+        <p className="mu" style={{ fontSize: '16px', maxWidth: '620px', margin: '20px 0 0', lineHeight: 1.6 }}>
           Teachers mark each day in a ruled sheet and add columns for assignments and tests. Students see only their own record, updated as it changes.
         </p>
       </section>

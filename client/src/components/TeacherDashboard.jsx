@@ -101,7 +101,7 @@ export default function TeacherDashboard({ teacher, onOpenClassroom, onSignOut }
       <div className="dash flex-1">
         {/* LEFT SECTION: CLASSROOM DIRECTORY */}
         <section>
-          <h1 style={{ fontSize: '44px', marginBottom: '32px' }}>Your classrooms</h1>
+          <h1 style={{ fontSize: 'clamp(28px, 5vw, 42px)', marginBottom: '24px' }}>Your classrooms</h1>
 
           {error && (
             <div style={{ padding: '12px', border: '1px solid var(--no)', color: 'var(--no)', marginBottom: '20px', fontSize: '13px' }}>

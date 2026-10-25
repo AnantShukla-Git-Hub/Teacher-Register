@@ -114,20 +114,33 @@ export default function StudentPortal({ initialData, onLeave }) {
     return match ? match.value : '—';
   };
 
-  const formatDateDisplay = (isoStr) => {
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '—';
     try {
-      const d = new Date(isoStr + 'T00:00:00');
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+      const parts = clean.split('-').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      return dateStr;
     } catch {
-      return isoStr;
+      return dateStr;
     }
   };
 
   const formatTime = (ts) => {
     if (!ts) return '—';
     try {
-      const d = new Date(ts);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // Normalize UTC timestamp string from database
+      const iso = ts.includes('T') ? ts : (ts.replace(' ', 'T') + (ts.endsWith('Z') ? '' : 'Z'));
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
     } catch {
       return '—';
     }
@@ -142,11 +155,11 @@ export default function StudentPortal({ initialData, onLeave }) {
       </header>
 
       {/* STUDENT PROFILE TITLE */}
-      <section style={{ padding: '40px 56px 0' }}>
+      <section style={{ padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 56px) 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <span className="lb mono">Room {classroom.room_id} &nbsp; Roll No. {student.roll_no}</span>
-            <h1 style={{ fontSize: '40px' }}>{student.name}</h1>
+            <h1 style={{ fontSize: 'clamp(24px, 5vw, 40px)' }}>{student.name}</h1>
           </div>
           {liveToast && (
             <span className="mono" style={{ fontSize: '13px', border: '1px solid var(--ok)', color: 'var(--ok)', padding: '4px 12px' }}>
@@ -161,7 +174,7 @@ export default function StudentPortal({ initialData, onLeave }) {
         {/* LEFT COLUMN: ATTENDANCE SUMMARY & MARKS */}
         <section>
           <span className="lb">Attendance</span>
-          <div className="sf" style={{ fontSize: '128px', lineHeight: 1, margin: '8px 0' }}>
+          <div className="sf percentage-stat">
             {attendancePercentage}%
           </div>
           <p style={{ margin: '0 0 4px', fontWeight: 500 }}>

@@ -297,6 +297,16 @@ app.delete('/api/classrooms/:id', authenticateTeacher, (req, res) => {
   return res.json({ success: true });
 });
 
+// Helper to guarantee standard UTC ISO-8601 timestamps
+function normalizeIsoTimestamp(ts) {
+  if (!ts) return new Date().toISOString();
+  const str = String(ts).trim();
+  if (str.includes('T')) {
+    return str.endsWith('Z') ? str : `${str}Z`;
+  }
+  return `${str.replace(' ', 'T')}Z`;
+}
+
 // Get classroom register details (Teacher view)
 app.get('/api/classrooms/:id', authenticateTeacher, (req, res) => {
   const { id } = req.params;
@@ -307,8 +317,11 @@ app.get('/api/classrooms/:id', authenticateTeacher, (req, res) => {
 
   const students = db.prepare('SELECT * FROM students WHERE classroom_id = ? ORDER BY CAST(roll_no AS INTEGER) ASC, roll_no ASC').all(id);
   const customColumns = db.prepare('SELECT * FROM custom_columns WHERE classroom_id = ? ORDER BY order_index ASC, created_at ASC').all(id);
-  const attendance = db.prepare('SELECT student_id, date, status, updated_at FROM attendance_records WHERE classroom_id = ?').all(id);
-  const marks = db.prepare('SELECT student_id, column_id, value, updated_at FROM student_marks WHERE classroom_id = ?').all(id);
+  const rawAttendance = db.prepare('SELECT student_id, date, status, updated_at FROM attendance_records WHERE classroom_id = ?').all(id);
+  const rawMarks = db.prepare('SELECT student_id, column_id, value, updated_at FROM student_marks WHERE classroom_id = ?').all(id);
+
+  const attendance = rawAttendance.map(a => ({ ...a, updated_at: normalizeIsoTimestamp(a.updated_at) }));
+  const marks = rawMarks.map(m => ({ ...m, updated_at: normalizeIsoTimestamp(m.updated_at) }));
 
   return res.json({
     classroom,
@@ -468,17 +481,25 @@ app.post('/api/classrooms/:id/attendance', authenticateTeacher, (req, res) => {
     return res.status(404).json({ error: 'Student not found in this classroom.' });
   }
 
+  const nowIso = new Date().toISOString();
   const recordId = crypto.randomUUID();
   const upsertStmt = db.prepare(`
     INSERT INTO attendance_records (id, classroom_id, student_id, date, status, updated_at)
-    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(classroom_id, student_id, date) DO UPDATE SET 
       status = excluded.status,
-      updated_at = CURRENT_TIMESTAMP
+      updated_at = excluded.updated_at
   `);
 
-  upsertStmt.run(recordId, id, student_id, date, status);
-  const record = db.prepare('SELECT * FROM attendance_records WHERE classroom_id = ? AND student_id = ? AND date = ?').get(id, student_id, date);
+  upsertStmt.run(recordId, id, student_id, date, status, nowIso);
+  const record = {
+    id: recordId,
+    classroom_id: id,
+    student_id,
+    date,
+    status,
+    updated_at: nowIso
+  };
 
   const payload = {
     classroomId: id,
@@ -486,7 +507,7 @@ app.post('/api/classrooms/:id/attendance', authenticateTeacher, (req, res) => {
     rollNo: student.roll_no,
     date,
     status,
-    updatedAt: record ? record.updated_at : new Date().toISOString()
+    updatedAt: nowIso
   };
 
   const cleanRoom = classroom.room_id.toUpperCase();
@@ -523,24 +544,25 @@ app.post('/api/classrooms/:id/attendance/bulk', authenticateTeacher, (req, res) 
     targetStudents = allStudents.filter(s => filterSet.has(s.id));
   }
 
+  const nowIso = new Date().toISOString();
   const upsertStmt = db.prepare(`
     INSERT INTO attendance_records (id, classroom_id, student_id, date, status, updated_at)
-    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(classroom_id, student_id, date) DO UPDATE SET 
       status = excluded.status,
-      updated_at = CURRENT_TIMESTAMP
+      updated_at = excluded.updated_at
   `);
 
   const runBulk = db.transaction((list) => {
     for (const s of list) {
-      upsertStmt.run(crypto.randomUUID(), id, s.id, date, status);
+      upsertStmt.run(crypto.randomUUID(), id, s.id, date, status, nowIso);
     }
   });
 
   runBulk(targetStudents);
 
   const cleanRoom = classroom.room_id.toUpperCase();
-  const updatedAt = new Date().toISOString();
+  const updatedAt = nowIso;
 
   // Broadcast to teachers
   io.to(`room:${cleanRoom}:teachers`).emit('attendance_bulk_updated', {
@@ -586,20 +608,21 @@ app.post('/api/classrooms/:id/marks', authenticateTeacher, (req, res) => {
   }
 
   const cleanValue = value !== undefined ? String(value).trim().slice(0, 50) : '';
+  const nowIso = new Date().toISOString();
 
   const upsertStmt = db.prepare(`
     INSERT INTO student_marks (id, classroom_id, student_id, column_id, value, updated_at)
-    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(student_id, column_id) DO UPDATE SET 
       value = excluded.value,
-      updated_at = CURRENT_TIMESTAMP
+      updated_at = excluded.updated_at
   `);
 
-  upsertStmt.run(crypto.randomUUID(), id, student_id, column_id, cleanValue);
+  upsertStmt.run(crypto.randomUUID(), id, student_id, column_id, cleanValue, nowIso);
 
   const cleanRoom = classroom.room_id.toUpperCase();
   const cleanRoll = student.roll_no.toUpperCase();
-  const updatedAt = new Date().toISOString();
+  const updatedAt = nowIso;
 
   const payload = {
     classroomId: id,
@@ -771,12 +794,13 @@ app.post('/api/student/join', (req, res) => {
   `).all(classroom.id);
 
   // Fetch strictly this student's attendance records
-  const attendance = db.prepare(`
+  const rawAttendance = db.prepare(`
     SELECT date, status, updated_at
     FROM attendance_records
     WHERE classroom_id = ? AND student_id = ?
     ORDER BY date DESC
   `).all(classroom.id, student.id);
+  const attendance = rawAttendance.map(a => ({ ...a, updated_at: normalizeIsoTimestamp(a.updated_at) }));
 
   // Fetch total distinct session count
   const totalSessionsRow = db.prepare(`
@@ -788,11 +812,12 @@ app.post('/api/student/join', (req, res) => {
   const totalSessions = totalSessionsRow ? totalSessionsRow.total_days : 0;
 
   // Fetch strictly this student's marks
-  const marks = db.prepare(`
+  const rawMarks = db.prepare(`
     SELECT column_id, value, updated_at
     FROM student_marks
     WHERE classroom_id = ? AND student_id = ?
   `).all(classroom.id, student.id);
+  const marks = rawMarks.map(m => ({ ...m, updated_at: normalizeIsoTimestamp(m.updated_at) }));
 
   return res.json({
     token: studentToken,

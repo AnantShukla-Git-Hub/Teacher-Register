@@ -24,6 +24,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, .sf {
@@ -48,6 +49,7 @@ h1, h2, h3, .sf {
   color: var(--mu);
 }
 
+/* Header */
 header.archival-header {
   display: flex;
   justify-content: space-between;
@@ -56,6 +58,7 @@ header.archival-header {
   padding: 20px 56px;
   border-bottom: 1px solid var(--ink);
   background-color: var(--bg);
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -80,6 +83,7 @@ button {
   align-items: center;
   justify-content: center;
   transition: opacity 0.15s ease;
+  touch-action: manipulation;
 }
 
 .btn:hover {
@@ -92,7 +96,7 @@ button {
 }
 
 .btn-sm {
-  min-height: 36px;
+  min-height: 38px;
   padding: 0 16px;
   font-size: 13px;
 }
@@ -103,13 +107,14 @@ button {
   border-bottom: 1px solid var(--ink);
   color: var(--ink);
   padding: 0;
-  min-height: 44px;
+  min-height: 40px;
   font-family: inherit;
   font-size: inherit;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   transition: opacity 0.15s ease;
+  touch-action: manipulation;
 }
 
 .lk:hover {
@@ -126,8 +131,10 @@ button {
   outline-offset: 2px;
 }
 
+/* Underline Inputs (16px base font on mobile prevents Safari auto-zoom) */
 .archival-input {
-  font: inherit;
+  font-family: inherit;
+  font-size: 15px;
   width: 100%;
   border: 0;
   border-bottom: 1px solid var(--ink);
@@ -155,6 +162,7 @@ table.archival-table th {
   color: var(--mu);
   padding: 10px 12px 10px 0;
   border-bottom: 1px solid var(--ink);
+  white-space: nowrap;
 }
 
 table.archival-table td {
@@ -163,11 +171,12 @@ table.archival-table td {
   border-bottom: 1px solid var(--rule);
 }
 
+/* Mechanical Stamp Markers */
 .m {
   background: none;
   border: 0;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   color: #6B6659;
   font-family: "IBM Plex Mono", monospace;
   font-size: 13px;
@@ -177,6 +186,7 @@ table.archival-table td {
   align-items: center;
   justify-content: center;
   transition: background 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
+  touch-action: manipulation;
 }
 
 .m:hover {
@@ -205,6 +215,17 @@ table.archival-table td {
 .no { color: var(--no); font-weight: 600; }
 .lt { color: var(--late); font-weight: 600; }
 
+/* Layout Grid Containers */
+.hero-section {
+  padding: 64px 56px 48px;
+  max-width: 900px;
+}
+
+.hero-title {
+  font-size: 56px;
+  line-height: 1.08;
+}
+
 .two {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -228,12 +249,12 @@ table.archival-table td {
 }
 
 .dash > section:first-child {
-  padding: 48px 56px 48px 0;
+  padding: 40px 56px 48px 0;
   border-right: 1px solid var(--rule);
 }
 
 .dash > section:last-child {
-  padding: 48px 0 48px 56px;
+  padding: 40px 0 48px 56px;
 }
 
 .stu {
@@ -257,23 +278,31 @@ table.archival-table td {
 
 .bar {
   display: flex;
-  gap: 28px;
+  gap: 20px;
   align-items: center;
   flex-wrap: wrap;
   border-top: 1px solid var(--ink);
   border-bottom: 1px solid var(--rule);
   margin-top: 24px;
-  padding: 4px 0;
+  padding: 8px 0;
+}
+
+.percentage-stat {
+  font-size: 110px;
+  line-height: 1;
+  margin: 8px 0;
 }
 
 .scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg);
@@ -282,25 +311,80 @@ table.archival-table td {
   background: var(--rule);
 }
 
+/* =================================================== */
+/* MOBILE & TABLET RESPONSIVE SYSTEM (MAX-WIDTH 860px) */
+/* =================================================== */
 @media (max-width: 860px) {
-  header.archival-header, .pad {
-    padding-left: 20px;
-    padding-right: 20px;
+  header.archival-header {
+    padding: 14px 20px;
+    gap: 12px;
   }
+  
+  .brand {
+    font-size: 20px;
+  }
+
+  .hero-section {
+    padding: 32px 20px 24px;
+  }
+
+  .hero-title {
+    font-size: 32px !important;
+    line-height: 1.15;
+  }
+
+  .pad {
+    padding: 20px 16px 36px;
+  }
+
   .two, .dash, .stu {
     grid-template-columns: 1fr;
     margin: 0;
-    padding: 0 20px;
+    padding: 0 16px;
   }
+
   .two > div:first-child, .dash > section:first-child, .stu > section:first-child {
     border-right: 0;
-    padding-right: 0;
+    padding: 24px 0 32px 0;
     border-bottom: 1px solid var(--rule);
   }
+
   .two > div:last-child, .dash > section:last-child, .stu > section:last-child {
-    padding-left: 0;
+    padding: 28px 0 36px 0;
+    border-left: 0;
   }
+
   h1 {
-    font-size: 34px !important;
+    font-size: 30px !important;
+  }
+
+  h2 {
+    font-size: 24px !important;
+  }
+
+  .percentage-stat {
+    font-size: 68px !important;
+  }
+
+  .bar {
+    gap: 12px;
+    margin-top: 16px;
+    padding: 8px 0;
+  }
+
+  .bar label {
+    width: 100%;
+    min-width: 100% !important;
+  }
+
+  .archival-input {
+    font-size: 16px; /* Prevents auto-zoom in mobile Safari */
+  }
+
+  footer {
+    padding: 20px 16px !important;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
   }
 }

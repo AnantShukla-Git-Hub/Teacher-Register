@@ -253,12 +253,18 @@ export default function ClassroomRegister({ classroomId, onBack }) {
     setSelectedDate(`${year}-${month}-${day}`);
   };
 
-  const formatDateDisplay = (isoStr) => {
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '—';
     try {
-      const d = new Date(isoStr + 'T00:00:00');
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+      const parts = clean.split('-').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      return dateStr;
     } catch {
-      return isoStr;
+      return dateStr;
     }
   };
 
@@ -450,7 +456,7 @@ export default function ClassroomRegister({ classroomId, onBack }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <span className="lb">Classroom register</span>
-            <h1 style={{ fontSize: '40px' }}>{data.classroom.name}</h1>
+            <h1 style={{ fontSize: 'clamp(24px, 4.5vw, 38px)' }}>{data.classroom.name}</h1>
             <span className="mu mono" style={{ fontSize: '13px' }}>
               Room {data.classroom.room_id} &nbsp; Password {data.classroom.room_password} &nbsp;
               <button className="lk lk-sm" onClick={copyInvite} style={{ fontSize: '12px' }}>
