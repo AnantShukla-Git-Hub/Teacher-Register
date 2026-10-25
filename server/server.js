@@ -350,9 +350,11 @@ app.post('/api/classrooms/:id/students', authenticateTeacher, (req, res) => {
   const insertBatch = db.transaction((list) => {
     let count = 0;
     for (const s of list) {
-      if (!s.roll_no || !s.name) continue;
-      const cleanRoll = String(s.roll_no).trim().slice(0, 50);
-      const cleanName = String(s.name).trim().slice(0, 100);
+      const rawRoll = s.roll_no || s.rollNo || s.roll;
+      const rawName = s.name || s.student_name;
+      if (!rawRoll || !rawName) continue;
+      const cleanRoll = String(rawRoll).trim().slice(0, 50);
+      const cleanName = String(rawName).trim().slice(0, 100);
       if (cleanRoll && cleanName) {
         insertStmt.run(crypto.randomUUID(), id, cleanRoll, cleanName);
         count++;

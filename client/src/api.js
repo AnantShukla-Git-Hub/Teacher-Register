@@ -62,20 +62,66 @@ export const api = {
   getClassroomDetails: (id) => request(`/classrooms/${id}`),
 
   // Student Roster
-  uploadStudents: (classroomId, students) => request(`/classrooms/${classroomId}/students`, { method: 'POST', body: JSON.stringify({ students }) }),
-  deleteStudent: (classroomId, studentId) => request(`/classrooms/${classroomId}/students/${studentId}`, { method: 'DELETE' }),
+  addStudent: (classroomId, student) => {
+    const s = {
+      roll_no: student.roll_no || student.rollNo,
+      name: student.name
+    };
+    return request(`/classrooms/${classroomId}/students`, { 
+      method: 'POST', 
+      body: JSON.stringify({ students: [s] }) 
+    });
+  },
+  importStudents: (classroomId, students) => {
+    const list = (students || []).map((s) => ({
+      roll_no: s.roll_no || s.rollNo,
+      name: s.name
+    }));
+    return request(`/classrooms/${classroomId}/students`, { 
+      method: 'POST', 
+      body: JSON.stringify({ students: list }) 
+    });
+  },
+  uploadStudents: (classroomId, students) => {
+    const list = (students || []).map((s) => ({
+      roll_no: s.roll_no || s.rollNo,
+      name: s.name
+    }));
+    return request(`/classrooms/${classroomId}/students`, { 
+      method: 'POST', 
+      body: JSON.stringify({ students: list }) 
+    });
+  },
+  deleteStudent: (classroomId, studentId) => 
+    request(`/classrooms/${classroomId}/students/${studentId}`, { method: 'DELETE' }),
 
   // Evaluation Columns
-  addCustomColumn: (classroomId, data) => request(`/classrooms/${classroomId}/columns`, { method: 'POST', body: JSON.stringify(data) }),
-  deleteCustomColumn: (classroomId, colId) => request(`/classrooms/${classroomId}/columns/${colId}`, { method: 'DELETE' }),
+  addColumn: (classroomId, title) => 
+    request(`/classrooms/${classroomId}/columns`, { 
+      method: 'POST', 
+      body: JSON.stringify({ title: typeof title === 'object' ? title.title : title }) 
+    }),
+  addCustomColumn: (classroomId, data) => 
+    request(`/classrooms/${classroomId}/columns`, { 
+      method: 'POST', 
+      body: JSON.stringify(typeof data === 'string' ? { title: data } : data) 
+    }),
+  deleteColumn: (classroomId, colId) => 
+    request(`/classrooms/${classroomId}/columns/${colId}`, { method: 'DELETE' }),
+  deleteCustomColumn: (classroomId, colId) => 
+    request(`/classrooms/${classroomId}/columns/${colId}`, { method: 'DELETE' }),
 
   // Attendance
-  markAttendance: (classroomId, data) => request(`/classrooms/${classroomId}/attendance`, { method: 'POST', body: JSON.stringify(data) }),
-  bulkMarkAttendance: (classroomId, data) => request(`/classrooms/${classroomId}/attendance/bulk`, { method: 'POST', body: JSON.stringify(data) }),
+  markAttendance: (classroomId, data) => 
+    request(`/classrooms/${classroomId}/attendance`, { method: 'POST', body: JSON.stringify(data) }),
+  bulkMarkAttendance: (classroomId, data) => 
+    request(`/classrooms/${classroomId}/attendance/bulk`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Evaluation Marks
-  updateMarks: (classroomId, data) => request(`/classrooms/${classroomId}/marks`, { method: 'POST', body: JSON.stringify(data) }),
+  updateMarks: (classroomId, data) => 
+    request(`/classrooms/${classroomId}/marks`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Student Portal
-  studentJoin: (data) => request('/student/join', { method: 'POST', body: JSON.stringify(data) }),
+  studentJoin: (data) => 
+    request('/student/join', { method: 'POST', body: JSON.stringify(data) }),
 };
