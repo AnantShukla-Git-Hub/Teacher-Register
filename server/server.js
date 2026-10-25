@@ -339,11 +339,13 @@ app.delete('/api/classrooms/:id', authenticateTeacher, async (req, res) => {
 function normalizeIsoTimestamp(ts) {
   if (!ts) return new Date().toISOString();
   if (ts instanceof Date) return ts.toISOString();
-  const str = String(ts).trim();
-  if (str.includes('T')) {
-    return str.endsWith('Z') ? str : `${str}Z`;
-  }
-  return `${str.replace(' ', 'T')}Z`;
+  try {
+    const d = new Date(ts);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString();
+    }
+  } catch {}
+  return new Date().toISOString();
 }
 
 // Get classroom register details (Teacher view)
@@ -355,10 +357,12 @@ app.get('/api/classrooms/:id', authenticateTeacher, async (req, res) => {
       return res.status(404).json({ error: 'Classroom not found or unauthorized.' });
     }
 
-    const students = await db.prepare('SELECT * FROM students WHERE classroom_id = ? ORDER BY CAST(roll_no AS INTEGER) ASC, roll_no ASC').all(id);
-    const customColumns = await db.prepare('SELECT * FROM custom_columns WHERE classroom_id = ? ORDER BY order_index ASC, created_at ASC').all(id);
-    const rawAttendance = await db.prepare('SELECT student_id, date, status, updated_at FROM attendance_records WHERE classroom_id = ?').all(id);
-    const rawMarks = await db.prepare('SELECT student_id, column_id, value, updated_at FROM student_marks WHERE classroom_id = ?').all(id);
+    const [students, customColumns, rawAttendance, rawMarks] = await Promise.all([
+      db.prepare('SELECT * FROM students WHERE classroom_id = ? ORDER BY CAST(roll_no AS INTEGER) ASC, roll_no ASC').all(id),
+      db.prepare('SELECT * FROM custom_columns WHERE classroom_id = ? ORDER BY order_index ASC, created_at ASC').all(id),
+      db.prepare('SELECT student_id, date, status, updated_at FROM attendance_records WHERE classroom_id = ?').all(id),
+      db.prepare('SELECT student_id, column_id, value, updated_at FROM student_marks WHERE classroom_id = ?').all(id),
+    ]);
 
     const attendance = (rawAttendance || []).map(a => ({ ...a, updated_at: normalizeIsoTimestamp(a.updated_at) }));
     const marks = (rawMarks || []).map(m => ({ ...m, updated_at: normalizeIsoTimestamp(m.updated_at) }));
@@ -914,7 +918,16 @@ app.post('/api/student/join', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    database: 'sqlite',
+    timestamp: new Date().toISOString() 
+  });
+});
+
+// JSON fallback for unknown API endpoints
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: `API endpoint '${req.originalUrl}' not found.` });
 });
 
 // Serve static frontend in production

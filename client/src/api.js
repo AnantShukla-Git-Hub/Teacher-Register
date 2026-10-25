@@ -37,18 +37,33 @@ async function request(url, options = {}) {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${url}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${url}`, {
+      ...options,
+      headers,
+    });
+  } catch (netErr) {
+    throw new Error('Network connection error. Please check your internet connection.');
+  }
 
-  const data = await response.json().catch(() => ({}));
+  const text = await response.text();
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // Non-JSON response (e.g. 502 Bad Gateway from cloud edge)
+  }
+
   if (!response.ok) {
     if (response.status === 401 && !url.includes('/student/join') && !url.includes('/auth/google')) {
       setAuthToken('');
       setStoredTeacher(null);
     }
-    throw new Error(data.error || 'Server request failed');
+    const defaultMsg = response.status === 502
+      ? 'The cloud server is momentarily waking up or restarting. Please try again in a few seconds.'
+      : `Server request failed (Status ${response.status})`;
+    throw new Error(data.error || defaultMsg);
   }
   return data;
 }

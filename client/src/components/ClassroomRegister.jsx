@@ -426,10 +426,13 @@ export default function ClassroomRegister({ classroomId, onBack }) {
           <button className="lk" onClick={onBack}>Back to classrooms</button>
         </header>
         <div className="pad">
-          <div style={{ padding: '16px', border: '1px solid var(--no)', color: 'var(--no)', marginBottom: '20px' }}>
+          <div style={{ padding: '16px', border: '1px solid var(--no)', color: 'var(--no)', marginBottom: '20px', fontSize: '14px' }}>
             {error || 'Classroom records not found.'}
           </div>
-          <button className="btn" onClick={onBack}>Back to Dashboard</button>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button className="btn" onClick={fetchRegisterData}>Retry</button>
+            <button className="lk" style={{ border: '1px solid var(--rule)', padding: '0 16px', minHeight: '40px' }} onClick={onBack}>Back to Dashboard</button>
+          </div>
         </div>
       </div>
     );
