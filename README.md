@@ -1,85 +1,89 @@
 # Teacher Register
 
-A high-performance classroom attendance register and continuous assessment system. Built with React 19, Vite, Tailwind CSS, Node.js Express, Socket.IO, and SQLite.
+A simple, real-time classroom attendance register and continuous assessment system designed with an archival paper aesthetic.
+
+**Live Application:** [https://teacher-register.onrender.com](https://teacher-register.onrender.com)
 
 ---
 
-## System Overview
+## Overview
 
-Teacher Register is designed for educational institutions requiring reliable, real-time classroom attendance tracking and assessment management without infrastructure overhead.
+Teacher Register replicates the feel of a traditional classroom register ledger while providing instant real-time synchronization between instructors and students.
 
-### Instructor Capabilities
-- **Google OAuth Authentication**: Cryptographically verified sign-in using Google Identity Services (GSI).
-- **First-Time Profile Initialization**: Automatic onboarding for instructor title and official name display.
-- **Classroom Administration**: Creation and management of classrooms with unique Room IDs and passwords.
-- **Interactive Register Sheet**: Real-life paper-style register grid with single-click Present (P), Absent (A), and Late (L) toggles.
-- **CSV Roster Import**: Import student rosters with `Roll No` and `Name` headers in bulk (up to 2,000 students per batch).
-- **Parallel Evaluation Columns**: Add custom columns (e.g., Assignment 1, Class Test 1 Marks, Midterm) with inline spreadsheet editing.
-- **Batch Operations**: One-click "Mark All Present", search/filter, and full register CSV export.
+### For Teachers
+- **Google Sign-In**: Authenticate using your Google account.
+- **Classroom Management**: Create classrooms with custom or auto-generated Room IDs and passwords.
+- **Ruled Register Grid**: Mark attendance with one-click mechanical stamp markers: Present (P), Absent (A), and Late (L).
+- **Roster Management**: Import student lists via CSV or add students individually.
+- **Continuous Assessment**: Add parallel evaluation columns (e.g., Assignment 1, Quiz, Midterm) and update marks inline.
+- **Batch Actions**: Mark all students present with one click, search/filter the register, and export data to CSV.
 
-### Student Capabilities (Read-Only Portal)
-- **Zero Account Creation Overhead**: Students authenticate with Room ID, Room Password, and their official Roll Number.
-- **Real-Time Live Updates**: Instant UI state reflection as the instructor marks attendance via scoped WebSocket channels.
-- **Strict Data Privacy**: Network-level channel scoping ensures students can strictly view only their own records and scores.
-- **Attendance Analytics**: Percentage calculations, compliance threshold indicators, and historical records.
+### For Students
+- **Instant Access**: Join with Room ID, Password, and your class roll number (e.g., 1, 2, 3... or college roll number).
+- **Live Sync**: See attendance status updates the moment your instructor marks them.
+- **Private Evaluation Record**: Strict channel isolation ensures students only see their own attendance percentage, session history, and assessment scores.
 
 ---
 
-## Architectural & Security Design
+## Tech Stack
 
-1. **Cryptographic Token Verification**: Google ID tokens are verified directly against Google's public key infrastructure using `google-auth-library`. Unverified tokens and spoofed signatures are strictly rejected.
-2. **Channel-Scoped WebSockets**: Student connections subscribe exclusively to `room:<ROOM_ID>:student:<ROLL_NO>`. Evaluation marks and attendance updates for other roll numbers are never broadcast to unauthorized student connections.
-3. **Brute-Force Rate Limiting**: The student authentication endpoint enforces IP-based rate limiting to prevent automated credential enumeration.
-4. **Unified Deployment Model**: The Express service serves the compiled client bundle in production, eliminating cross-origin resource sharing (CORS) complications and multi-service failure points.
+- **Frontend**: React 19, Vite, Tailwind CSS v4
+- **Backend**: Node.js, Express
+- **Real-Time Engine**: Socket.IO (channel-scoped WebSocket subscriptions)
+- **Database**: SQLite (better-sqlite3)
+- **Authentication**: Google OAuth 2.0 (google-auth-library) with JWT session tokens
 
 ---
 
-## Local Development
+## Getting Started Locally
 
 ### Prerequisites
-- Node.js (v18 or newer)
-- npm (v9 or newer)
+- Node.js (v18 or higher)
+- npm (v9 or higher)
 
-### Installation & Execution
-From the project root:
+### Installation
 
 ```bash
-# Install dependencies
+# Clone repository
+git clone https://github.com/AnantShukla-Git-Hub/Teacher-Register.git
+cd Teacher-Register
+
+# Install dependencies and build client
 npm install
-cd client && npm install && cd ..
-
-# Launch development environment (Backend + Frontend concurrently)
-npm run dev
-```
-
-- Client Application: `http://localhost:5173`
-- Backend API & WebSockets: `http://localhost:5000`
-
-### Production Build
-```bash
 npm run build
+
+# Start server
 npm start
 ```
 
+The application will be available at `http://localhost:5000`.
+
+### Development Mode
+
+To run both backend and Vite client with hot reloading:
+
+```bash
+npm run dev
+```
+
+- Client: `http://localhost:5173`
+- Backend: `http://localhost:5000`
+
 ---
 
-## Environment Configuration
+## Environment Variables
 
-Configure the following variables in `.env`:
+Create a `.env` file in the root directory:
 
 ```env
 PORT=5000
 NODE_ENV=development
-JWT_SECRET=your-secure-random-secret
+JWT_SECRET=your-secret-key-here
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
-
-In Google Cloud Console, ensure the following origins are registered under **Authorized JavaScript origins**:
-- `http://localhost:5173` (Local Client)
-- `http://localhost:5000` (Local Server)
-- `https://your-domain.onrender.com` (Production Host)
 
 ---
 
 ## License
-MIT License. Clean, production-grade software for classroom management.
+
+MIT License.
