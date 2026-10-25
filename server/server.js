@@ -642,18 +642,31 @@ app.post('/api/student/join', (req, res) => {
   const cleanPass = String(password).trim();
   const cleanRoll = String(rollNo).trim().toUpperCase();
 
-  // Verify classroom credentials
-  const classroom = db.prepare(`
-    SELECT c.id, c.name, c.subject, c.room_id, t.name as teacher_name
+  // Verify classroom existence and credentials
+  const roomMatch = db.prepare(`
+    SELECT c.id, c.name, c.subject, c.room_id, c.room_password, t.name as teacher_name
     FROM classrooms c
     JOIN teachers t ON c.teacher_id = t.id
-    WHERE UPPER(c.room_id) = ? AND c.room_password = ?
-  `).get(cleanRoom, cleanPass);
+    WHERE UPPER(c.room_id) = ?
+  `).get(cleanRoom);
 
-  if (!classroom) {
+  if (!roomMatch) {
     recordFailedAttempt(ip);
-    return res.status(401).json({ error: 'Invalid Room ID or Password.' });
+    return res.status(404).json({
+      error: `Room ID '${cleanRoom}' does not exist on this server. Please check the Room ID or make sure the instructor has created the classroom on this deployment.`
+    });
   }
+
+  // Verify password with case-insensitivity tolerance for mobile/keyboard input
+  const isPassValid = roomMatch.room_password === cleanPass || roomMatch.room_password.toLowerCase() === cleanPass.toLowerCase();
+  if (!isPassValid) {
+    recordFailedAttempt(ip);
+    return res.status(401).json({
+      error: 'Incorrect room password. Please verify the password provided by your instructor.'
+    });
+  }
+
+  const classroom = roomMatch;
 
   // Fetch all students in this classroom ordered by numeric value then alphanumeric
   const allStudents = db.prepare(`
