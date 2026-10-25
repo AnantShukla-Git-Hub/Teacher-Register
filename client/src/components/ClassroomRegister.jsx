@@ -453,21 +453,25 @@ export default function ClassroomRegister({ classroomId, onBack }) {
       {/* REGISTER PAD */}
       <section className="pad flex-1">
         {/* TITLE & DATE PAGER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <span className="lb">Classroom register</span>
-            <h1 style={{ fontSize: 'clamp(24px, 4.5vw, 38px)' }}>{data.classroom.name}</h1>
-            <span className="mu mono" style={{ fontSize: '13px' }}>
-              Room {data.classroom.room_id} &nbsp; Password {data.classroom.room_password} &nbsp;
+            <h1 style={{ fontSize: 'clamp(22px, 4.5vw, 36px)', lineHeight: 1.2 }}>{data.classroom.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+              <span className="mu mono" style={{ fontSize: '13px' }}>
+                Room <b style={{ color: 'var(--ink)' }}>{data.classroom.room_id}</b> &nbsp;|&nbsp; Password <b style={{ color: 'var(--ink)' }}>{data.classroom.room_password}</b>
+              </span>
               <button className="lk lk-sm" onClick={copyInvite} style={{ fontSize: '12px' }}>
                 {copiedInvite ? 'Copied' : 'Copy invite'}
               </button>
-            </span>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <button className="lk" onClick={() => shiftDate(-1)}>Previous</button>
-            <span className="mono" style={{ fontSize: '15px' }}>{formatDateDisplay(selectedDate)}</span>
+            <span className="mono" style={{ fontSize: '15px', fontWeight: 600, padding: '4px 8px', border: '1px solid var(--rule)' }}>
+              {formatDateDisplay(selectedDate)}
+            </span>
             <button className="lk" onClick={() => shiftDate(1)}>Next</button>
             {selectedDate !== getTodayDate() && (
               <button className="lk lk-sm mu" onClick={() => setSelectedDate(getTodayDate())}>
@@ -479,41 +483,43 @@ export default function ClassroomRegister({ classroomId, onBack }) {
 
         {/* TOOLBAR */}
         <div className="bar">
-          <label style={{ flex: 1, margin: 0, minWidth: '220px' }}>
+          <label style={{ flex: 1, margin: 0, minWidth: '200px' }}>
             <span className="lb" style={{ position: 'absolute', left: '-9999px' }}>Filter</span>
             <input
               id="flt"
-              placeholder="Filter by roll number or name"
+              placeholder="Filter by roll number or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="archival-input"
-              style={{ border: 0, padding: '12px 0' }}
+              style={{ border: 0, borderBottom: '1px solid var(--rule)', padding: '8px 0' }}
             />
           </label>
 
-          <button className="lk" onClick={() => setActivePanel(activePanel === 'csv' ? null : 'csv')}>
-            Import CSV
-          </button>
-          <button className="lk" onClick={() => setActivePanel(activePanel === 'add_student' ? null : 'add_student')}>
-            Add student
-          </button>
-          <button className="lk" onClick={() => setActivePanel(activePanel === 'add_column' ? null : 'add_column')}>
-            Add column
-          </button>
-          <button className="lk" onClick={handleMarkAllPresent}>
-            Mark all present
-          </button>
-          <button className="btn" onClick={handleExportCsv}>
-            Export CSV
-          </button>
+          <div className="bar-btn-group">
+            <button className="lk" onClick={() => setActivePanel(activePanel === 'csv' ? null : 'csv')}>
+              Import CSV
+            </button>
+            <button className="lk" onClick={() => setActivePanel(activePanel === 'add_student' ? null : 'add_student')}>
+              Add student
+            </button>
+            <button className="lk" onClick={() => setActivePanel(activePanel === 'add_column' ? null : 'add_column')}>
+              Add column
+            </button>
+            <button className="lk" onClick={handleMarkAllPresent}>
+              Mark all present
+            </button>
+            <button className="btn" onClick={handleExportCsv}>
+              Export CSV
+            </button>
+          </div>
         </div>
 
         {/* INLINE PANELS FOR ACTIONS */}
         {activePanel === 'add_student' && (
-          <div style={{ border: '1px solid var(--ink)', padding: '20px 24px', margin: '16px 0', backgroundColor: '#EDE8DE' }}>
+          <div style={{ border: '1px solid var(--ink)', padding: '16px 20px', margin: '16px 0', backgroundColor: '#EDE8DE' }}>
             <span className="lb">Add individual student</span>
-            <form onSubmit={handleAddStudent} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', marginTop: '12px', flexWrap: 'wrap' }}>
-              <label style={{ margin: 0, minWidth: '120px' }}>
+            <form onSubmit={handleAddStudent} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', marginTop: '12px', flexWrap: 'wrap' }}>
+              <label style={{ margin: 0, flex: '1 1 120px' }}>
                 <span className="lb">Roll No</span>
                 <input
                   className="archival-input"
@@ -523,7 +529,7 @@ export default function ClassroomRegister({ classroomId, onBack }) {
                   required
                 />
               </label>
-              <label style={{ margin: 0, flex: 1, minWidth: '200px' }}>
+              <label style={{ margin: 0, flex: '2 1 200px' }}>
                 <span className="lb">Student Name</span>
                 <input
                   className="archival-input"
@@ -533,19 +539,21 @@ export default function ClassroomRegister({ classroomId, onBack }) {
                   required
                 />
               </label>
-              <button type="submit" className="btn btn-sm" disabled={actionLoading}>
-                {actionLoading ? 'Saving...' : 'Save student'}
-              </button>
-              <button type="button" className="lk lk-sm" onClick={() => setActivePanel(null)}>Cancel</button>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '240px' }}>
+                <button type="submit" className="btn btn-sm" style={{ flex: 1 }} disabled={actionLoading}>
+                  {actionLoading ? 'Saving...' : 'Save student'}
+                </button>
+                <button type="button" className="lk lk-sm" onClick={() => setActivePanel(null)}>Cancel</button>
+              </div>
             </form>
           </div>
         )}
 
         {activePanel === 'add_column' && (
-          <div style={{ border: '1px solid var(--ink)', padding: '20px 24px', margin: '16px 0', backgroundColor: '#EDE8DE' }}>
+          <div style={{ border: '1px solid var(--ink)', padding: '16px 20px', margin: '16px 0', backgroundColor: '#EDE8DE' }}>
             <span className="lb">Add continuous assessment column</span>
-            <form onSubmit={handleAddColumn} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', marginTop: '12px', flexWrap: 'wrap' }}>
-              <label style={{ margin: 0, flex: 1, minWidth: '240px' }}>
+            <form onSubmit={handleAddColumn} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', marginTop: '12px', flexWrap: 'wrap' }}>
+              <label style={{ margin: 0, flex: '3 1 220px' }}>
                 <span className="lb">Column Title</span>
                 <input
                   className="archival-input"
@@ -555,16 +563,18 @@ export default function ClassroomRegister({ classroomId, onBack }) {
                   required
                 />
               </label>
-              <button type="submit" className="btn btn-sm" disabled={actionLoading}>
-                {actionLoading ? 'Creating...' : 'Create column'}
-              </button>
-              <button type="button" className="lk lk-sm" onClick={() => setActivePanel(null)}>Cancel</button>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '240px' }}>
+                <button type="submit" className="btn btn-sm" style={{ flex: 1 }} disabled={actionLoading}>
+                  {actionLoading ? 'Creating...' : 'Create column'}
+                </button>
+                <button type="button" className="lk lk-sm" onClick={() => setActivePanel(null)}>Cancel</button>
+              </div>
             </form>
           </div>
         )}
 
         {activePanel === 'csv' && (
-          <div style={{ border: '1px solid var(--ink)', padding: '20px 24px', margin: '16px 0', backgroundColor: '#EDE8DE' }}>
+          <div style={{ border: '1px solid var(--ink)', padding: '16px 20px', margin: '16px 0', backgroundColor: '#EDE8DE' }}>
             <span className="lb">Import student roster from CSV</span>
             {csvError && (
               <div style={{ padding: '8px 12px', border: '1px solid var(--no)', color: 'var(--no)', margin: '10px 0', fontSize: '13px' }}>
@@ -575,8 +585,8 @@ export default function ClassroomRegister({ classroomId, onBack }) {
               <textarea
                 rows="5"
                 className="archival-input"
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: '12px', border: '1px solid var(--rule)', padding: '8px', background: 'transparent' }}
-                placeholder="Roll No,Name&#10;1,Aarav Patel&#10;2,Aditi Sharma&#10;3,Ananya Gupta"
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: '13px', border: '1px solid var(--ink)', padding: '8px', backgroundColor: 'var(--bg)' }}
+                placeholder="Roll No,Name&#10;1,Aarav Patel&#10;2,Aditi Sharma&#10;3,Anant Shukla"
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
               />
@@ -606,15 +616,18 @@ export default function ClassroomRegister({ classroomId, onBack }) {
         )}
 
         {/* REGISTER TABLE */}
+        <div className="md:hidden mu mono" style={{ fontSize: '11px', padding: '6px 0', marginBottom: '4px' }}>
+          Swipe ledger horizontally for attendance and custom marks →
+        </div>
         <div className="scroll">
           <table className="archival-table" style={{ marginTop: '8px' }}>
             <thead>
               <tr>
-                <th style={{ width: '64px' }}>Roll</th>
-                <th>Student name</th>
-                <th style={{ width: '150px' }}>{selectedDate === getTodayDate() ? 'Today' : formatDateDisplay(selectedDate)}</th>
+                <th style={{ width: '56px', minWidth: '56px' }}>Roll</th>
+                <th style={{ minWidth: '130px', whiteSpace: 'nowrap' }}>Student name</th>
+                <th style={{ width: '150px', minWidth: '150px', whiteSpace: 'nowrap' }}>{selectedDate === getTodayDate() ? 'Today' : formatDateDisplay(selectedDate)}</th>
                 {data.customColumns.map((col) => (
-                  <th key={col.id} style={{ width: '140px' }}>
+                  <th key={col.id} style={{ width: '140px', minWidth: '140px', whiteSpace: 'nowrap' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>{col.title}</span>
                       <button
@@ -628,7 +641,7 @@ export default function ClassroomRegister({ classroomId, onBack }) {
                     </div>
                   </th>
                 ))}
-                <th style={{ width: '60px' }}></th>
+                <th style={{ width: '50px', minWidth: '50px' }}></th>
               </tr>
             </thead>
             <tbody>

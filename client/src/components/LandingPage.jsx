@@ -56,8 +56,8 @@ export default function LandingPage({ onTeacherLogin, onStudentEnter }) {
       {/* HEADER */}
       <header className="archival-header">
         <span className="sf brand">Teacher Register</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <span className="mu" style={{ fontSize: '13px' }}>Classroom attendance & assessment</span>
+        <div className="header-meta">
+          <span className="mu hidden sm:inline" style={{ fontSize: '13px' }}>Classroom attendance & assessment</span>
           <button 
             type="button" 
             className="lk lk-sm" 

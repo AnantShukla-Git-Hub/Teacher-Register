@@ -151,7 +151,9 @@ export default function StudentPortal({ initialData, onLeave }) {
       {/* HEADER */}
       <header className="archival-header">
         <span className="sf brand">Teacher Register</span>
-        <button className="lk" onClick={onLeave}>Leave classroom</button>
+        <div className="header-meta">
+          <button className="lk" onClick={onLeave}>Leave classroom</button>
+        </div>
       </header>
 
       {/* STUDENT PROFILE TITLE */}

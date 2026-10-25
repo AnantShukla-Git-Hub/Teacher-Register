@@ -13,6 +13,13 @@
 * {
   box-sizing: border-box;
   border-radius: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -24,21 +31,33 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 h1, h2, h3, .sf {
   font-family: "Newsreader", Georgia, serif;
   font-weight: 500;
   margin: 0;
+  line-height: 1.2;
+}
+
+label {
+  display: block;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
 .lb {
-  font-size: 12px;
+  display: block;
+  font-size: 11px;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--mu);
   font-family: "IBM Plex Sans", sans-serif;
+  margin-bottom: 6px;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .mono {
@@ -58,11 +77,41 @@ header.archival-header {
   padding: 20px 56px;
   border-bottom: 1px solid var(--ink);
   background-color: var(--bg);
-  flex-wrap: wrap;
 }
 
 .brand {
   font-size: 24px;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Mobile Ledger Card for Classrooms */
+.mobile-ledger-card {
+  border: 1px solid var(--rule);
+  background-color: #FAF8F5;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-ledger-card:active {
+  background-color: #F0ECE3;
+}
+
+.mobile-ledger-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
 }
 
 button {
@@ -316,65 +365,101 @@ table.archival-table td {
 /* =================================================== */
 @media (max-width: 860px) {
   header.archival-header {
-    padding: 14px 20px;
-    gap: 12px;
+    padding: 12px 16px;
+    gap: 10px;
   }
   
   .brand {
-    font-size: 20px;
+    font-size: 19px;
+  }
+
+  .header-meta {
+    gap: 12px;
+    font-size: 13px;
   }
 
   .hero-section {
-    padding: 32px 20px 24px;
+    padding: 28px 16px 20px;
   }
 
   .hero-title {
-    font-size: 32px !important;
+    font-size: 28px !important;
     line-height: 1.15;
   }
 
   .pad {
-    padding: 20px 16px 36px;
+    padding: 16px 14px 32px;
   }
 
   .two, .dash, .stu {
-    grid-template-columns: 1fr;
+    grid-template-columns: 100%;
     margin: 0;
-    padding: 0 16px;
+    padding: 0 14px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .two > div:first-child, .dash > section:first-child, .stu > section:first-child {
     border-right: 0;
-    padding: 24px 0 32px 0;
+    padding: 20px 0 28px 0;
     border-bottom: 1px solid var(--rule);
+    width: 100%;
+    max-width: 100%;
   }
 
   .two > div:last-child, .dash > section:last-child, .stu > section:last-child {
-    padding: 28px 0 36px 0;
+    padding: 24px 0 32px 0;
     border-left: 0;
+    width: 100%;
+    max-width: 100%;
   }
 
   h1 {
-    font-size: 30px !important;
+    font-size: 26px !important;
   }
 
   h2 {
-    font-size: 24px !important;
+    font-size: 22px !important;
   }
 
   .percentage-stat {
-    font-size: 68px !important;
+    font-size: 64px !important;
   }
 
   .bar {
-    gap: 12px;
-    margin-top: 16px;
-    padding: 8px 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 10px 0;
   }
 
   .bar label {
     width: 100%;
     min-width: 100% !important;
+    margin-bottom: 0;
+  }
+
+  .bar-btn-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .bar-btn-group button {
+    width: 100%;
+    min-height: 42px;
+    padding: 6px 10px;
+    font-size: 13px;
+    justify-content: center;
+    border: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  .bar-btn-group button.btn {
+    grid-column: span 2;
+    border: 0;
   }
 
   .archival-input {
@@ -382,7 +467,7 @@ table.archival-table td {
   }
 
   footer {
-    padding: 20px 16px !important;
+    padding: 18px 14px !important;
     flex-direction: column;
     gap: 8px;
     text-align: center;

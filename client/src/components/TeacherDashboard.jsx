@@ -91,17 +91,17 @@ export default function TeacherDashboard({ teacher, onOpenClassroom, onSignOut }
       {/* HEADER */}
       <header className="archival-header">
         <span className="sf brand">Teacher Register</span>
-        <span className="mu" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span>Prof. {teacherName}</span>
+        <div className="header-meta">
+          <span className="mu" style={{ fontSize: '13px' }}>Prof. {teacherName}</span>
           <button className="lk" onClick={onSignOut}>Sign out</button>
-        </span>
+        </div>
       </header>
 
       {/* DASHBOARD SPLIT VIEW */}
       <div className="dash flex-1">
         {/* LEFT SECTION: CLASSROOM DIRECTORY */}
         <section>
-          <h1 style={{ fontSize: 'clamp(28px, 5vw, 42px)', marginBottom: '24px' }}>Your classrooms</h1>
+          <h1 style={{ fontSize: 'clamp(24px, 5vw, 36px)', marginBottom: '20px' }}>Your classrooms</h1>
 
           {error && (
             <div style={{ padding: '12px', border: '1px solid var(--no)', color: 'var(--no)', marginBottom: '20px', fontSize: '13px' }}>
@@ -111,29 +111,90 @@ export default function TeacherDashboard({ teacher, onOpenClassroom, onSignOut }
 
           {loading ? (
             <div className="mu mono" style={{ padding: '40px 0' }}>Loading classroom register index...</div>
+          ) : classrooms.length === 0 ? (
+            <div style={{ border: '1px solid var(--rule)', padding: '24px', textAlign: 'center', backgroundColor: '#FAF8F5', margin: '16px 0' }}>
+              <p className="mu" style={{ margin: 0, fontSize: '14px' }}>
+                No classrooms registered yet. Create your first classroom using the form below.
+              </p>
+            </div>
           ) : (
-            <div className="scroll">
-              <table className="archival-table">
-                <thead>
-                  <tr>
-                    <th>Classroom</th>
-                    <th>Room ID</th>
-                    <th>Password</th>
-                    <th>Students</th>
-                    <th>Sessions</th>
-                    <th>Action</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {classrooms.length === 0 ? (
+            <>
+              {/* MOBILE CARD VIEW (< 768px) */}
+              <div className="block md:hidden">
+                {classrooms.map((cls) => (
+                  <div key={cls.id} className="mobile-ledger-card">
+                    <div>
+                      <span className="lb" style={{ marginBottom: '2px' }}>Classroom</span>
+                      <h3 style={{ fontSize: '20px', fontWeight: 600 }}>{cls.name}</h3>
+                      {cls.subject && (
+                        <p className="mu" style={{ margin: '4px 0 0', fontSize: '13px' }}>{cls.subject}</p>
+                      )}
+                    </div>
+
+                    <div className="mobile-ledger-grid">
+                      <div>
+                        <span className="lb">Room ID</span>
+                        <span className="mono" style={{ fontWeight: 600 }}>{cls.room_id}</span>
+                      </div>
+                      <div>
+                        <span className="lb">Password</span>
+                        <span className="mono" style={{ fontWeight: 600 }}>{cls.room_password}</span>
+                      </div>
+                      <div>
+                        <span className="lb">Students</span>
+                        <span className="mono">{cls.student_count || 0}</span>
+                      </div>
+                      <div>
+                        <span className="lb">Sessions</span>
+                        <span className="mono">{cls.total_sessions || 0}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        className="btn"
+                        style={{ flex: 1, minWidth: '140px', minHeight: '42px', fontSize: '14px' }}
+                        onClick={() => onOpenClassroom(cls.id)}
+                      >
+                        Open register
+                      </button>
+                      <button
+                        className="lk lk-sm mu"
+                        style={{ border: '1px solid var(--rule)', padding: '0 12px', minHeight: '42px' }}
+                        onClick={(e) => copyRoomDetails(e, cls)}
+                        title="Copy student invite"
+                      >
+                        {copiedId === cls.id ? 'Copied' : 'Copy'}
+                      </button>
+                      <button
+                        className="lk lk-sm"
+                        style={{ color: 'var(--no)', border: '1px solid var(--rule)', padding: '0 12px', minHeight: '42px' }}
+                        onClick={(e) => handleDeleteClassroom(e, cls.id, cls.name)}
+                        title="Delete classroom"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* DESKTOP TABLE VIEW (>= 768px) */}
+              <div className="scroll hidden md:block">
+                <table className="archival-table">
+                  <thead>
                     <tr>
-                      <td colSpan="7" className="mu" style={{ height: '80px', textAlign: 'center' }}>
-                        No classrooms registered yet. Create your first classroom using the form on the right.
-                      </td>
+                      <th>Classroom</th>
+                      <th>Room ID</th>
+                      <th>Password</th>
+                      <th>Students</th>
+                      <th>Sessions</th>
+                      <th>Action</th>
+                      <th></th>
                     </tr>
-                  ) : (
-                    classrooms.map((cls) => (
+                  </thead>
+                  <tbody>
+                    {classrooms.map((cls) => (
                       <tr key={cls.id}>
                         <td>
                           <b style={{ fontWeight: 500 }}>{cls.name}</b>
@@ -173,11 +234,11 @@ export default function TeacherDashboard({ teacher, onOpenClassroom, onSignOut }
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           <p className="mu" style={{ fontSize: '13px', marginTop: '16px' }}>
