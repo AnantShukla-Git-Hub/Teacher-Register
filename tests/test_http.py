@@ -9,8 +9,9 @@ import requests
 import sys
 import os
 
-SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
-VENV_PYTHON = os.path.join(os.path.dirname(SERVER_DIR), "venv", "Scripts", "python.exe")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SERVER_DIR = os.path.join(ROOT_DIR, "server")
+VENV_PYTHON = os.path.join(ROOT_DIR, "venv", "Scripts", "python.exe")
 
 def run_http_tests():
     print("Starting FastAPI + Socket.IO server on port 8000...")
@@ -23,7 +24,7 @@ def run_http_tests():
 
     try:
         # Give server time to bind
-        time.sleep(2.5)
+        time.sleep(3.0)
 
         base_url = "http://127.0.0.1:8000"
 
@@ -34,36 +35,44 @@ def run_http_tests():
         assert "Teacher Register" in res.text
         print("[OK] Root serves built React application successfully!")
 
-        # 2. Test Teacher Demo Auth
-        print("Testing Teacher Demo Login (POST /api/auth/teacher)...")
-        auth_res = requests.post(
-            f"{base_url}/api/auth/teacher",
-            json={"email": "ahmad.hasan@ietlucknow.ac.in", "password": "teacher123", "name": "Dr. Ahmad Hasan", "title": "Prof."},
+        # 2. Test Teacher Auth (Register / Login)
+        print("Testing Teacher Registration / Login...")
+        reg_res = requests.post(
+            f"{base_url}/api/auth/register",
+            json={"email": "guide.test@ietlucknow.ac.in", "password": "securepassword123", "name": "Dr. Ahmad Hasan", "title": "Prof."},
             timeout=5
         )
-        assert auth_res.status_code == 200
-        auth_data = auth_res.json()
-        assert "token" in auth_data
-        token = auth_data["token"]
-        print("[OK] Teacher Auth returned valid token!")
+        if reg_res.status_code == 200:
+            token = reg_res.json()["token"]
+            print("[OK] Teacher registered successfully!")
+        else:
+            # Login if already registered
+            login_res = requests.post(
+                f"{base_url}/api/auth/login",
+                json={"email": "guide.test@ietlucknow.ac.in", "password": "securepassword123"},
+                timeout=5
+            )
+            assert login_res.status_code == 200
+            token = login_res.json()["token"]
+            print("[OK] Teacher logged in successfully!")
 
         headers = {"Authorization": f"Bearer {token}"}
 
         # 3. Create Classroom under this teacher
-        print("Creating classroom CSE-3A...")
+        room_code = "CSE-HTTP-3A"
+        print(f"Creating classroom {room_code}...")
         create_res = requests.post(
             f"{base_url}/api/classrooms",
             headers=headers,
-            json={"room_id": "CSE-3A", "room_name": "Computer Networks Lab", "room_password": "iet123"},
+            json={"room_id": room_code, "room_name": "Computer Networks Lab", "room_password": "iet123"},
             timeout=5
         )
-        # If already exists from earlier test, 400 is fine
         print("Classroom create response:", create_res.status_code)
 
         # 4. Add Students
-        print("Adding students to CSE-3A...")
+        print(f"Adding students to {room_code}...")
         roster_res = requests.post(
-            f"{base_url}/api/classrooms/CSE-3A/students",
+            f"{base_url}/api/classrooms/{room_code}/students",
             headers=headers,
             json={"students": [
                 {"roll_no": "2500520100112", "name": "Anant Shukla"},
@@ -72,12 +81,12 @@ def run_http_tests():
             timeout=5
         )
         assert roster_res.status_code == 200
-        print("[OK] Students added to CSE-3A!")
+        print(f"[OK] Students added to {room_code}!")
 
         # 5. Add Session
-        print("Adding session to CSE-3A...")
+        print(f"Adding session to {room_code}...")
         sess_res = requests.post(
-            f"{base_url}/api/classrooms/CSE-3A/sessions",
+            f"{base_url}/api/classrooms/{room_code}/sessions",
             headers=headers,
             json={"session_date": "2026-11-17", "title": "Socket.IO Architecture"},
             timeout=5
@@ -90,7 +99,7 @@ def run_http_tests():
         print("Testing Student Login (POST /api/student/login)...")
         stu_res = requests.post(
             f"{base_url}/api/student/login",
-            json={"room_id": "CSE-3A", "room_password": "iet123", "roll_no": "2500520100112"},
+            json={"room_id": room_code, "room_password": "iet123", "roll_no": "2500520100112"},
             timeout=5
         )
         assert stu_res.status_code == 200
@@ -101,7 +110,7 @@ def run_http_tests():
         # 7. Test Student Dashboard
         print("Testing Student Dashboard (GET /api/student/dashboard)...")
         dash_res = requests.get(
-            f"{base_url}/api/student/dashboard?room_id=CSE-3A&roll_no=2500520100112",
+            f"{base_url}/api/student/dashboard?room_id={room_code}&roll_no=2500520100112",
             timeout=5
         )
         assert dash_res.status_code == 200
@@ -111,12 +120,20 @@ def run_http_tests():
         print("[OK] Student Dashboard calculation and compliance returned accurately!")
 
         # 8. Test CSV Export
-        print("Testing CSV Register Export (GET /api/classrooms/CSE-3A/export)...")
-        csv_res = requests.get(f"{base_url}/api/classrooms/CSE-3A/export", headers=headers, timeout=5)
+        print(f"Testing CSV Register Export (GET /api/classrooms/{room_code}/export)...")
+        csv_res = requests.get(f"{base_url}/api/classrooms/{room_code}/export", headers=headers, timeout=5)
         assert csv_res.status_code == 200
         assert "Roll No,Student Name" in csv_res.text
         assert "Anant Shukla" in csv_res.text
         print("[OK] CSV Export returned valid tabular register data!")
+
+        # 9. Test Shortage PDF Generation
+        print(f"Testing Attendance Shortage PDF Report (GET /api/classrooms/{room_code}/shortage-pdf)...")
+        pdf_res = requests.get(f"{base_url}/api/classrooms/{room_code}/shortage-pdf?threshold=75", headers=headers, timeout=5)
+        assert pdf_res.status_code == 200
+        assert pdf_res.headers.get("content-type") == "application/pdf"
+        assert len(pdf_res.content) > 500
+        print("[OK] Shortage PDF generated successfully with binary stream!")
 
         print("\n==========================================")
         print("ALL HTTP AND FULL-STACK TESTS PASSED 100%!")

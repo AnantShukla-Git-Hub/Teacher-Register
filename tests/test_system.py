@@ -6,8 +6,11 @@ Tests all core APIs, SQLite queries, attendance calculations, and compliance rul
 import sys
 import os
 
-# Set path to current directory
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Set path to server directory
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SERVER_DIR = os.path.join(ROOT_DIR, "server")
+if SERVER_DIR not in sys.path:
+    sys.path.insert(0, SERVER_DIR)
 
 from database import init_db, get_connection
 from auth import create_jwt_token, decode_jwt_token
