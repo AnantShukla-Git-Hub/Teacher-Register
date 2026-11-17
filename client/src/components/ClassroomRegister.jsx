@@ -313,6 +313,33 @@ export default function ClassroomRegister({ roomId, onBack }) {
     );
   }, [data?.students, searchQuery]);
 
+  const activeSession = useMemo(() => {
+    const sessions = data?.sessions || [];
+    return sessions.find((s) => s.id === activeSessionId) || sessions[sessions.length - 1] || null;
+  }, [data?.sessions, activeSessionId]);
+
+  const activeDateCounts = useMemo(() => {
+    if (!activeSession?.id || !data?.students) return { p: 0, a: 0, l: 0 };
+    let p = 0, a = 0, l = 0;
+    const sessRecords = data.attendance?.[activeSession.id] || {};
+    for (const st of data.students) {
+      const status = sessRecords[st.id];
+      if (status === "P") p++;
+      else if (status === "A") a++;
+      else if (status === "L") l++;
+    }
+    return { p, a, l };
+  }, [activeSession, data?.students, data?.attendance]);
+
+  const editorFilteredStudents = useMemo(() => {
+    if (!data?.students) return [];
+    if (!dateEditorSearch.trim()) return data.students;
+    const q = dateEditorSearch.toLowerCase().trim();
+    return data.students.filter(
+      (st) => st.name.toLowerCase().includes(q) || st.roll_no.toLowerCase().includes(q)
+    );
+  }, [data?.students, dateEditorSearch]);
+
   function copyStudentCredentials() {
     if (!data?.classroom) return;
     const text = `Room ID: ${data.classroom.room_id} | Password: ${data.classroom.room_password}`;
@@ -337,32 +364,6 @@ export default function ClassroomRegister({ roomId, onBack }) {
   }
 
   const { classroom, sessions, attendance, evaluations, scores, student_stats } = data;
-
-  const activeSession = useMemo(() => {
-    return sessions?.find((s) => s.id === activeSessionId) || (sessions?.length > 0 ? sessions[sessions.length - 1] : null);
-  }, [sessions, activeSessionId]);
-
-  const activeDateCounts = useMemo(() => {
-    if (!activeSession?.id || !data?.students) return { p: 0, a: 0, l: 0 };
-    let p = 0, a = 0, l = 0;
-    const sessRecords = attendance[activeSession.id] || {};
-    for (const st of data.students) {
-      const status = sessRecords[st.id];
-      if (status === "P") p++;
-      else if (status === "A") a++;
-      else if (status === "L") l++;
-    }
-    return { p, a, l };
-  }, [activeSession, data?.students, attendance]);
-
-  const editorFilteredStudents = useMemo(() => {
-    if (!data?.students) return [];
-    if (!dateEditorSearch.trim()) return data.students;
-    const q = dateEditorSearch.toLowerCase().trim();
-    return data.students.filter(
-      (st) => st.name.toLowerCase().includes(q) || st.roll_no.toLowerCase().includes(q)
-    );
-  }, [data?.students, dateEditorSearch]);
 
   return (
     <div className="max-w-[98%] mx-auto py-6 space-y-4">
