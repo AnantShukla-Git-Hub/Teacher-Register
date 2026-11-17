@@ -672,6 +672,187 @@ def export_classroom_register_csv(room_id: str, teacher_id: int = Depends(get_cu
     )
 
 # -------------------------------------------------------------
+# REST API Endpoints: Attendance Shortage PDF Report
+# -------------------------------------------------------------
+@app.get("/api/classrooms/{room_id}/shortage-pdf")
+def export_attendance_shortage_pdf(
+    room_id: str,
+    threshold: float = 75.0,
+    token: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Generates an official PDF report of students with attendance below the specified threshold.
+    """
+    auth_token = None
+    if isinstance(authorization, str) and authorization.startswith("Bearer "):
+        auth_token = authorization.split(" ")[1]
+    elif token:
+        auth_token = token
+
+    if not auth_token:
+        raise HTTPException(status_code=401, detail="Authentication token required")
+
+    payload = decode_jwt_token(auth_token)
+    if not payload or "teacher_id" not in payload:
+        raise HTTPException(status_code=401, detail="Invalid session token")
+    teacher_id = payload["teacher_id"]
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.id, c.room_id, c.room_name, t.name as teacher_name, t.title as teacher_title
+        FROM classrooms c
+        JOIN teachers t ON c.teacher_id = t.id
+        WHERE c.room_id = ? AND c.teacher_id = ?
+    """, (room_id.upper(), teacher_id))
+    classroom = cursor.fetchone()
+    if not classroom:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Classroom not found")
+
+    cid = classroom["id"]
+
+    cursor.execute("SELECT id, session_date FROM attendance_sessions WHERE classroom_id = ? ORDER BY id ASC", (cid,))
+    sessions = cursor.fetchall()
+    total_sessions = len(sessions)
+
+    cursor.execute("SELECT id, roll_no, name FROM students WHERE classroom_id = ? ORDER BY roll_no ASC", (cid,))
+    students = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT ar.student_id, ar.status
+        FROM attendance_records ar
+        JOIN attendance_sessions s ON ar.session_id = s.id
+        WHERE s.classroom_id = ?
+    """, (cid,))
+    att_counts = defaultdict(lambda: {"P": 0, "L": 0, "A": 0})
+    for r in cursor.fetchall():
+        if r["status"] in ("P", "L", "A"):
+            att_counts[r["student_id"]][r["status"]] += 1
+
+    conn.close()
+
+    shortage_list = []
+    for st in students:
+        counts = att_counts[st["id"]]
+        attended = counts["P"] + counts["L"]
+        pct = round((attended / total_sessions * 100), 1) if total_sessions > 0 else 100.0
+        if pct < threshold:
+            shortage_list.append({
+                "roll_no": st["roll_no"],
+                "name": st["name"],
+                "attended": attended,
+                "total": total_sessions,
+                "percentage": pct
+            })
+
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "ReportTitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=15,
+        alignment=1,
+        spaceAfter=4
+    )
+    sub_style = ParagraphStyle(
+        "ReportSub",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=10,
+        alignment=1,
+        textColor=colors.HexColor("#444444"),
+        spaceAfter=12
+    )
+
+    elements.append(Paragraph("ATTENDANCE SHORTAGE REPORT", title_style))
+    elements.append(Paragraph(f"Course: {classroom['room_name']} ({classroom['room_id']})", sub_style))
+
+    meta_data = [
+        [f"Instructor: {classroom['teacher_title']} {classroom['teacher_name']}", f"Required Threshold: {threshold}%"],
+        [f"Total Lectures Conducted: {total_sessions}", f"Total Students Enrolled: {len(students)}"],
+        [f"Students Below Threshold: {len(shortage_list)}", f"Date: {time.strftime('%Y-%m-%d')}"]
+    ]
+    meta_table = Table(meta_data, colWidths=[270, 270])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('TEXTCOLOR', (0,0), (-1,-1), colors.HexColor("#333333")),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+    ]))
+    elements.append(meta_table)
+    elements.append(Spacer(1, 14))
+
+    if len(shortage_list) == 0:
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph(f"<b>Notice:</b> All enrolled students have attendance meeting or exceeding the {threshold}% requirement.", styles["Normal"]))
+    else:
+        table_data = [["#", "Roll Number", "Student Name", "Attended", "Total", "Attendance %", "Deficit"]]
+        for i, st in enumerate(shortage_list, 1):
+            needed = max(0, int((threshold / 100.0 * total_sessions) - st["attended"] + 0.99))
+            table_data.append([
+                str(i),
+                st["roll_no"],
+                st["name"],
+                f"{st['attended']}",
+                f"{st['total']}",
+                f"{st['percentage']}%",
+                f"-{needed} classes"
+            ])
+
+        col_widths = [30, 110, 180, 55, 45, 70, 50]
+        report_table = Table(table_data, colWidths=col_widths)
+        report_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#f0f0f0")),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#111111")),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 8.5),
+            ('ALIGN', (0,0), (0,-1), 'CENTER'),
+            ('ALIGN', (3,0), (-1,-1), 'CENTER'),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TEXTCOLOR', (5,1), (5,-1), colors.HexColor("#cc0000")),
+            ('FONTNAME', (5,1), (5,-1), 'Helvetica-Bold'),
+        ]))
+        elements.append(report_table)
+
+    elements.append(Spacer(1, 35))
+    sig_data = [
+        ["", "_____________________________________"],
+        ["", f"Signature: {classroom['teacher_title']} {classroom['teacher_name']}"],
+        ["", "Faculty / Course Instructor"]
+    ]
+    sig_table = Table(sig_data, colWidths=[300, 240])
+    sig_table.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
+    ]))
+    elements.append(sig_table)
+
+    doc.build(elements)
+    buf.seek(0)
+
+    filename = f"{room_id}_shortage_report.pdf"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# -------------------------------------------------------------
 # REST API Endpoints: Student Portal & Rate Limiting
 # -------------------------------------------------------------
 @app.post("/api/student/login")

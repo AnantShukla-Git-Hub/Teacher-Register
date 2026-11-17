@@ -24,6 +24,9 @@ export default function ClassroomRegister({ roomId, onBack }) {
   const [singleName, setSingleName] = useState("");
   const [csvContent, setCsvContent] = useState("");
 
+  const [isShortageModalOpen, setIsShortageModalOpen] = useState(false);
+  const [shortageThreshold, setShortageThreshold] = useState("75");
+
   const [copiedCredentials, setCopiedCredentials] = useState(false);
 
   useEffect(() => {
@@ -318,6 +321,13 @@ export default function ClassroomRegister({ roomId, onBack }) {
           >
             Export CSV
           </a>
+
+          <button
+            onClick={() => setIsShortageModalOpen(true)}
+            className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white font-medium rounded"
+          >
+            Shortage PDF
+          </button>
         </div>
       </div>
 
@@ -695,6 +705,68 @@ export default function ClassroomRegister({ roomId, onBack }) {
                   className="flex-1 py-1 bg-blue-600 text-white rounded font-medium"
                 >
                   Save to Roster
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Extract Shortage PDF */}
+      {isShortageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded border border-gray-400 max-w-xs w-full p-4 space-y-3 shadow-md text-xs">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+              <h3 className="font-bold text-gray-900">Attendance Shortage PDF</h3>
+              <button
+                onClick={() => setIsShortageModalOpen(false)}
+                className="text-gray-500 hover:text-black font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-gray-600 leading-relaxed">
+              Enter the required minimum attendance percentage. The PDF will list students below this threshold.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                window.open(api.getShortagePdfUrl(roomId, shortageThreshold || 75), "_blank");
+                setIsShortageModalOpen(false);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">
+                  Required Percentage (%)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                  required
+                  value={shortageThreshold}
+                  onChange={(e) => setShortageThreshold(e.target.value)}
+                  className="w-full border border-gray-300 rounded p-1.5 font-mono"
+                />
+              </div>
+
+              <div className="flex space-x-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsShortageModalOpen(false)}
+                  className="flex-1 py-1.5 bg-gray-100 border border-gray-300 rounded text-gray-700 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded font-medium transition"
+                >
+                  Download PDF
                 </button>
               </div>
             </form>

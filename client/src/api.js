@@ -121,6 +121,11 @@ export const api = {
   // Export
   getExportUrl: (room_id) => `${API_BASE}/classrooms/${encodeURIComponent(room_id)}/export`,
 
+  getShortagePdfUrl: (room_id, threshold = 75) => {
+    const token = localStorage.getItem("tr_teacher_token") || "";
+    return `${API_BASE}/classrooms/${encodeURIComponent(room_id)}/shortage-pdf?threshold=${encodeURIComponent(threshold)}&token=${encodeURIComponent(token)}`;
+  },
+
   // Student Portal
   studentLogin: (room_id, room_password, roll_no) =>
     request("/student/login", {
