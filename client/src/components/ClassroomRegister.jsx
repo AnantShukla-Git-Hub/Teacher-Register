@@ -2,6 +2,11 @@ import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../api";
 import { socket } from "../socket";
 
+// Current date formatted in Indian Standard Time (Asia/Kolkata, UTC+05:30)
+function getIndiaDate() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+}
+
 export default function ClassroomRegister({ roomId, onBack }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -9,10 +14,17 @@ export default function ClassroomRegister({ roomId, onBack }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSessionId, setActiveSessionId] = useState(null);
 
+  // Indian Time Zone Today Date
+  const todayDate = useMemo(() => getIndiaDate(), []);
+
   // Modals
   const [isAddSessionOpen, setIsAddSessionOpen] = useState(false);
-  const [newSessionDate, setNewSessionDate] = useState(new Date().toISOString().split("T")[0]);
+  const [newSessionDate, setNewSessionDate] = useState(getIndiaDate());
   const [newSessionTitle, setNewSessionTitle] = useState("Lecture");
+
+  // Date Editor Modal (for opening any date to review/update attendance)
+  const [isDateEditorOpen, setIsDateEditorOpen] = useState(false);
+  const [dateEditorSearch, setDateEditorSearch] = useState("");
 
   const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
   const [newColName, setNewColName] = useState("");
@@ -112,6 +124,70 @@ export default function ClassroomRegister({ roomId, onBack }) {
     } catch (err) {
       alert("Failed to mark all present: " + err.message);
       loadRegister();
+    }
+  }
+
+  // Mark all absent for session
+  async function handleMarkAllAbsent(sessionId) {
+    if (!sessionId || !data?.students) return;
+
+    const records = data.students.map((st) => ({
+      student_id: st.id,
+      status: "A",
+    }));
+
+    setData((prev) => {
+      if (!prev) return prev;
+      const updatedAtt = { ...prev.attendance };
+      if (!updatedAtt[sessionId]) updatedAtt[sessionId] = {};
+      records.forEach((r) => {
+        updatedAtt[sessionId][r.student_id] = "A";
+      });
+      return { ...prev, attendance: updatedAtt };
+    });
+
+    try {
+      await api.updateAttendance(roomId, sessionId, records);
+      const res = await api.getClassroomRegister(roomId);
+      setData(res);
+    } catch (err) {
+      alert("Failed to mark all absent: " + err.message);
+      loadRegister();
+    }
+  }
+
+  // Set specific attendance status (P, A, or L) directly
+  async function handleSetAttendanceStatus(sessionId, studentId, newStatus) {
+    setData((prev) => {
+      if (!prev) return prev;
+      const updatedAtt = { ...prev.attendance };
+      if (!updatedAtt[sessionId]) updatedAtt[sessionId] = {};
+      updatedAtt[sessionId][studentId] = newStatus;
+      return { ...prev, attendance: updatedAtt };
+    });
+
+    try {
+      await api.updateAttendance(roomId, sessionId, [
+        { student_id: studentId, status: newStatus },
+      ]);
+      const res = await api.getClassroomRegister(roomId);
+      setData(res);
+    } catch (err) {
+      alert("Failed to update status: " + err.message);
+      loadRegister();
+    }
+  }
+
+  // Quick 1-click add for Today's Date (Indian Standard Time)
+  async function handleQuickAddToday() {
+    try {
+      const res = await api.createSession(roomId, todayDate, `Lecture ${todayDate}`);
+      await loadRegister();
+      if (res.session_id) {
+        setActiveSessionId(res.session_id);
+      }
+    } catch (err) {
+      alert(err.message || "Could not add today's date");
     }
   }
 
@@ -262,6 +338,32 @@ export default function ClassroomRegister({ roomId, onBack }) {
 
   const { classroom, sessions, attendance, evaluations, scores, student_stats } = data;
 
+  const activeSession = useMemo(() => {
+    return sessions?.find((s) => s.id === activeSessionId) || (sessions?.length > 0 ? sessions[sessions.length - 1] : null);
+  }, [sessions, activeSessionId]);
+
+  const activeDateCounts = useMemo(() => {
+    if (!activeSession?.id || !data?.students) return { p: 0, a: 0, l: 0 };
+    let p = 0, a = 0, l = 0;
+    const sessRecords = attendance[activeSession.id] || {};
+    for (const st of data.students) {
+      const status = sessRecords[st.id];
+      if (status === "P") p++;
+      else if (status === "A") a++;
+      else if (status === "L") l++;
+    }
+    return { p, a, l };
+  }, [activeSession, data?.students, attendance]);
+
+  const editorFilteredStudents = useMemo(() => {
+    if (!data?.students) return [];
+    if (!dateEditorSearch.trim()) return data.students;
+    const q = dateEditorSearch.toLowerCase().trim();
+    return data.students.filter(
+      (st) => st.name.toLowerCase().includes(q) || st.roll_no.toLowerCase().includes(q)
+    );
+  }, [data?.students, dateEditorSearch]);
+
   return (
     <div className="max-w-[98%] mx-auto py-6 space-y-4">
       {/* Top Header */}
@@ -306,11 +408,21 @@ export default function ClassroomRegister({ roomId, onBack }) {
             + Add Marks Column
           </button>
 
+          {!sessions?.some((s) => s.session_date === todayDate) && (
+            <button
+              onClick={handleQuickAddToday}
+              className="px-3 py-1.5 bg-green-700 hover:bg-green-800 text-white font-medium rounded"
+              title="Add today's attendance column in Indian Standard Time"
+            >
+              + Add Today ({todayDate})
+            </button>
+          )}
+
           <button
             onClick={() => setIsAddSessionOpen(true)}
             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded"
           >
-            + Add Lecture Date
+            + Custom Date
           </button>
 
           <a
@@ -348,22 +460,31 @@ export default function ClassroomRegister({ roomId, onBack }) {
 
         {sessions.length > 0 && (
           <div className="flex items-center space-x-2">
-            <span className="text-gray-600">Active Lecture:</span>
+            <span className="text-gray-600 font-medium">Lecture Date:</span>
             <select
               value={activeSessionId || ""}
               onChange={(e) => setActiveSessionId(Number(e.target.value))}
-              className="border border-gray-300 rounded px-2 py-1 text-xs bg-white"
+              className="border border-gray-300 rounded px-2 py-1 text-xs bg-white font-medium"
             >
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.session_date} ({s.title})
+                  {s.session_date} ({s.title}) {s.session_date === todayDate ? " [Today]" : ""}
                 </option>
               ))}
             </select>
 
             <button
+              onClick={() => setIsDateEditorOpen(true)}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded text-xs"
+              title="Open full attendance editor for this date"
+            >
+              Open Date Editor
+            </button>
+
+            <button
               onClick={() => handleMarkAllPresent(activeSessionId)}
-              className="px-2.5 py-1 bg-green-700 hover:bg-green-800 text-white font-medium rounded"
+              className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-800 font-medium rounded text-xs"
+              title="Mark all students present on selected date"
             >
               Mark All Present
             </button>
@@ -382,9 +503,26 @@ export default function ClassroomRegister({ roomId, onBack }) {
 
               {/* Attendance Dates */}
               {sessions.map((s) => (
-                <th key={s.id} className="p-1.5 border-r border-gray-300 text-center min-w-[85px] bg-gray-50">
-                  <div className="font-bold">{s.session_date}</div>
-                  <div className="text-[10px] text-gray-500 font-normal truncate max-w-[80px] mx-auto">
+                <th
+                  key={s.id}
+                  className={`p-1.5 border-r border-gray-300 text-center min-w-[90px] ${
+                    s.id === activeSessionId ? "bg-blue-50 border-b-2 border-b-blue-600" : "bg-gray-50"
+                  }`}
+                >
+                  <div
+                    onClick={() => {
+                      setActiveSessionId(s.id);
+                      setIsDateEditorOpen(true);
+                    }}
+                    className="font-bold cursor-pointer hover:text-blue-700 hover:underline"
+                    title="Click to open attendance editor for this date"
+                  >
+                    {s.session_date}
+                    {s.session_date === todayDate && (
+                      <span className="block text-[9px] text-green-700 font-bold uppercase">Today</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-500 font-normal truncate max-w-[85px] mx-auto">
                     {s.title}
                   </div>
                   <button
@@ -770,6 +908,138 @@ export default function ClassroomRegister({ roomId, onBack }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL 5: Open Any Date & Update Attendance */}
+      {isDateEditorOpen && activeSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded border border-gray-400 max-w-lg w-full p-5 space-y-3 shadow-md text-xs max-h-[85vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">
+                  Attendance: {activeSession.session_date}
+                </h3>
+                <p className="text-gray-500 text-[11px]">
+                  {activeSession.title} {activeSession.session_date === todayDate ? "• [Today IST]" : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsDateEditorOpen(false)}
+                className="text-gray-500 hover:text-black font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Stats & Batch Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50 p-2.5 rounded border border-gray-200">
+              <div className="flex space-x-3 text-gray-700">
+                <span>Present: <b className="text-green-700">{activeDateCounts.p}</b></span>
+                <span>Absent: <b className="text-red-700">{activeDateCounts.a}</b></span>
+                <span>Late: <b className="text-amber-700">{activeDateCounts.l}</b></span>
+                <span>Total: <b>{data.students.length}</b></span>
+              </div>
+
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handleMarkAllPresent(activeSession.id)}
+                  className="px-2 py-1 bg-green-700 hover:bg-green-800 text-white rounded font-medium text-[11px]"
+                >
+                  Mark All Present
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMarkAllAbsent(activeSession.id)}
+                  className="px-2 py-1 bg-red-700 hover:bg-red-800 text-white rounded font-medium text-[11px]"
+                >
+                  Mark All Absent
+                </button>
+              </div>
+            </div>
+
+            {/* Search Filter on this date */}
+            <div>
+              <input
+                type="text"
+                placeholder="Search student by roll no or name..."
+                value={dateEditorSearch}
+                onChange={(e) => setDateEditorSearch(e.target.value)}
+                className="w-full border border-gray-300 rounded p-1.5 text-xs"
+              />
+            </div>
+
+            {/* Student List for this Date */}
+            <div className="overflow-y-auto flex-1 border border-gray-200 rounded divide-y divide-gray-200 min-h-[200px] max-h-[350px]">
+              {editorFilteredStudents.length === 0 ? (
+                <div className="p-4 text-center text-gray-400">No matching students found.</div>
+              ) : (
+                editorFilteredStudents.map((st) => {
+                  const status = attendance[activeSession.id]?.[st.id] || "-";
+                  return (
+                    <div key={st.id} className="p-2 flex items-center justify-between hover:bg-gray-50">
+                      <div>
+                        <div className="font-medium text-gray-900">{st.name}</div>
+                        <div className="font-mono text-gray-500 text-[11px]">{st.roll_no}</div>
+                      </div>
+
+                      {/* Direct P / A / L Buttons */}
+                      <div className="flex space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSetAttendanceStatus(activeSession.id, st.id, "P")}
+                          className={`w-7 h-6 rounded font-bold text-xs transition ${
+                            status === "P"
+                              ? "bg-green-600 text-white"
+                              : "bg-gray-100 hover:bg-green-50 text-gray-600 border border-gray-300"
+                          }`}
+                          title="Mark Present"
+                        >
+                          P
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetAttendanceStatus(activeSession.id, st.id, "A")}
+                          className={`w-7 h-6 rounded font-bold text-xs transition ${
+                            status === "A"
+                              ? "bg-red-600 text-white"
+                              : "bg-gray-100 hover:bg-red-50 text-gray-600 border border-gray-300"
+                          }`}
+                          title="Mark Absent"
+                        >
+                          A
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetAttendanceStatus(activeSession.id, st.id, "L")}
+                          className={`w-7 h-6 rounded font-bold text-xs transition ${
+                            status === "L"
+                              ? "bg-amber-600 text-white"
+                              : "bg-gray-100 hover:bg-amber-50 text-gray-600 border border-gray-300"
+                          }`}
+                          title="Mark Late"
+                        >
+                          L
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end pt-2 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setIsDateEditorOpen(false)}
+                className="px-4 py-1.5 bg-gray-800 hover:bg-black text-white rounded font-medium"
+              >
+                Close Editor
+              </button>
+            </div>
           </div>
         </div>
       )}

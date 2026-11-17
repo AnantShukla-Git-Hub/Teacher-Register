@@ -9,8 +9,16 @@ import sys
 import io
 import csv
 import time
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from typing import Optional, List
+
+# Indian Standard Time (IST - Asia/Kolkata, UTC+05:30)
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_date() -> str:
+    """Returns current date in Indian Standard Time (YYYY-MM-DD)."""
+    return datetime.now(IST).strftime("%Y-%m-%d")
 
 # Ensure server directory is in sys.path regardless of working directory
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -519,7 +527,7 @@ def remove_student(room_id: str, student_id: int, teacher_id: int = Depends(get_
 # -------------------------------------------------------------
 @app.post("/api/classrooms/{room_id}/sessions")
 async def create_attendance_session(room_id: str, data: SessionCreateRequest, teacher_id: int = Depends(get_current_teacher_id)):
-    session_date = data.session_date or time.strftime("%Y-%m-%d")
+    session_date = data.session_date or get_ist_date()
     title = data.title or f"Lecture {session_date}"
 
     conn = get_connection()
