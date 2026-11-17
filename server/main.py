@@ -5,11 +5,18 @@ Designed for 3rd semester B.Tech mini project (clean, readable, zero-overhead).
 """
 
 import os
+import sys
 import io
 import csv
 import time
 from collections import defaultdict
 from typing import Optional, List
+
+# Ensure server directory is in sys.path regardless of working directory
+SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
+if SERVER_DIR not in sys.path:
+    sys.path.insert(0, SERVER_DIR)
+
 from fastapi import FastAPI, HTTPException, Depends, Header, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
