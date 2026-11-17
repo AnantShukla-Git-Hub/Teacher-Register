@@ -67,6 +67,16 @@ def record_failed_attempt(client_ip: str):
 # -------------------------------------------------------------
 # Pydantic Request Models
 # -------------------------------------------------------------
+class TeacherRegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    title: Optional[str] = "Prof."
+
+class TeacherLoginRequest(BaseModel):
+    email: str
+    password: str
+
 class TeacherAuthRequest(BaseModel):
     credential: Optional[str] = None
     email: Optional[str] = None
@@ -172,6 +182,96 @@ def calculate_student_stats(classroom_id: int, student_id: int, conn):
 # -------------------------------------------------------------
 # REST API Endpoints: Teacher Authentication & Profile
 # -------------------------------------------------------------
+@app.post("/api/auth/register")
+def register_teacher(data: TeacherRegisterRequest):
+    """
+    Registers a new teacher account with email and custom password.
+    """
+    email = data.email.strip().lower()
+    password = data.password.strip()
+    name = data.name.strip()
+    title = data.title.strip() if data.title else "Prof."
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required.")
+    if not password or len(password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
+    if not name:
+        raise HTTPException(status_code=400, detail="Faculty name is required.")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM teachers WHERE LOWER(email) = ?", (email,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="An account with this email already exists. Please login instead.")
+
+    cursor.execute(
+        "INSERT INTO teachers (email, password, name, title) VALUES (?, ?, ?, ?)",
+        (email, password, name, title)
+    )
+    conn.commit()
+    teacher_id = cursor.lastrowid
+    conn.close()
+
+    token = create_jwt_token({
+        "teacher_id": teacher_id,
+        "email": email,
+        "name": name,
+        "title": title
+    })
+
+    return {
+        "token": token,
+        "teacher": {
+            "id": teacher_id,
+            "email": email,
+            "name": name,
+            "title": title
+        }
+    }
+
+@app.post("/api/auth/login")
+def login_teacher(data: TeacherLoginRequest):
+    """
+    Logs in an existing teacher using email and password.
+    """
+    email = data.email.strip().lower()
+    password = data.password.strip()
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email and password are required.")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, email, password, name, title FROM teachers WHERE LOWER(email) = ?", (email,))
+    teacher = cursor.fetchone()
+    conn.close()
+
+    if not teacher:
+        raise HTTPException(status_code=404, detail="No teacher account found with this email. Please register first.")
+
+    stored_pwd = teacher["password"] or ""
+    if stored_pwd != password:
+        raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
+
+    token = create_jwt_token({
+        "teacher_id": teacher["id"],
+        "email": teacher["email"],
+        "name": teacher["name"],
+        "title": teacher["title"]
+    })
+
+    return {
+        "token": token,
+        "teacher": {
+            "id": teacher["id"],
+            "email": teacher["email"],
+            "name": teacher["name"],
+            "title": teacher["title"]
+        }
+    }
+
 @app.post("/api/auth/teacher")
 def authenticate_teacher(payload: TeacherAuthRequest):
     """

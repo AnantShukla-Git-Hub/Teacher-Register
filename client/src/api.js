@@ -39,6 +39,18 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   // Authentication & Profile
+  teacherRegister: (email, password, name, title) =>
+    request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, name, title }),
+    }),
+
+  teacherLogin: (email, password) =>
+    request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
   teacherAuth: (payload) =>
     request("/auth/teacher", {
       method: "POST",
