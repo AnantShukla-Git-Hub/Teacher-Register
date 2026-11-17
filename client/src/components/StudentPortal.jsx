@@ -5,6 +5,7 @@ import { socket } from "../socket";
 export default function StudentPortal({ studentSession, onLogout }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
 
   useEffect(() => {
     if (!studentSession) return;
@@ -31,8 +32,10 @@ export default function StudentPortal({ studentSession, onLogout }) {
     try {
       const data = await api.getStudentDashboard(rId, rNo);
       setDashboardData(data);
+      setDashboardError("");
     } catch (err) {
       console.error("Dashboard error:", err);
+      setDashboardError(err.message || "Unable to load your classroom dashboard.");
     } finally {
       setLoading(false);
     }
@@ -52,6 +55,30 @@ export default function StudentPortal({ studentSession, onLogout }) {
     );
   }
 
+  if (loading && !dashboardData) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-6 text-center text-xs text-gray-500">
+        Loading your classroom dashboard...
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-6 bg-red-50 border border-red-300 rounded text-center text-xs">
+        <p className="text-red-700 mb-3">
+          {dashboardError || "Unable to load your classroom dashboard."}
+        </p>
+        <button
+          onClick={() => fetchDashboard(studentSession.room_id, studentSession.student.roll_no)}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   const stats = dashboardData?.stats;
   const isCompliant = stats?.is_compliant ?? true;
   const history = dashboardData?.history || [];
@@ -59,6 +86,11 @@ export default function StudentPortal({ studentSession, onLogout }) {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-5 text-xs">
+      {dashboardError && (
+        <div className="p-3 bg-amber-50 border border-amber-300 rounded text-amber-800" role="status">
+          Could not refresh your dashboard: {dashboardError}
+        </div>
+      )}
       {/* Top Banner */}
       <div className="bg-white border border-gray-300 p-4 rounded flex items-center justify-between">
         <div>
