@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-stone-50 text-stone-900 antialiased font-sans;
+    min-height: 100vh;
+  }
+}
+
+/* Custom ruled-sheet aesthetic for register table */
+.register-grid th, .register-grid td {
+  border-right: 1px solid #e7e5e4;
+  border-bottom: 1px solid #e7e5e4;
+}
+
+.register-grid tr:hover td {
+  background-color: #fafaf9;
+}

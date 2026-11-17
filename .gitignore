@@ -1,0 +1,20 @@
+# Virtual Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Node & Dependencies
+node_modules/
+client/node_modules/
+
+# Local SQLite Database (auto-generated on run)
+*.db
+server/*.db
+
+# Environment Secrets
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
