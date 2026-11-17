@@ -1,91 +1,145 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
-import LandingPage from "./components/LandingPage";
+import AuthPortal from "./components/AuthPortal";
 import TeacherDashboard from "./components/TeacherDashboard";
 import ClassroomRegister from "./components/ClassroomRegister";
 import StudentPortal from "./components/StudentPortal";
-import TeacherAuthModal from "./components/TeacherAuthModal";
 import { api } from "./api";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState("landing"); // 'landing' | 'teacher' | 'register' | 'student'
-  const [activeRoomId, setActiveRoomId] = useState(null);
+  const [role, setRole] = useState(null); // 'teacher' | 'student' | null
   const [teacher, setTeacher] = useState(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [studentSession, setStudentSession] = useState(null);
+  const [activeRoomId, setActiveRoomId] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
-  // Check existing session
+  // Check existing session on boot
   useEffect(() => {
-    const token = localStorage.getItem("tr_teacher_token");
-    if (token) {
+    const savedRole = localStorage.getItem("tr_role") || sessionStorage.getItem("tr_role");
+    const token = localStorage.getItem("tr_token") || localStorage.getItem("tr_teacher_token");
+    const savedStudent = sessionStorage.getItem("tr_student");
+
+    if (savedRole === "teacher" && token) {
       api
         .getTeacherProfile()
         .then((profile) => {
+          setRole("teacher");
           setTeacher(profile);
+          sessionStorage.removeItem("tr_student");
         })
         .catch(() => {
-          localStorage.removeItem("tr_teacher_token");
-          setTeacher(null);
-        });
+          handleLogout();
+        })
+        .finally(() => setInitializing(false));
+    } else if (savedRole === "student" && savedStudent) {
+      try {
+        const parsed = JSON.parse(savedStudent);
+        setRole("student");
+        setStudentSession(parsed);
+        localStorage.removeItem("tr_token");
+        localStorage.removeItem("tr_teacher_token");
+      } catch (e) {
+        handleLogout();
+      }
+      setInitializing(false);
+    } else {
+      setInitializing(false);
     }
   }, []);
 
-  function handleTeacherLoginSuccess(teacherData) {
+  function handleTeacherLogin(teacherData, token) {
+    // Clear student session to guarantee complete isolation!
+    sessionStorage.clear();
+    localStorage.setItem("tr_role", "teacher");
+    localStorage.setItem("tr_token", token);
+    setRole("teacher");
     setTeacher(teacherData);
-    setCurrentView("teacher");
+    setStudentSession(null);
+    setActiveRoomId(null);
   }
 
-  function handleTeacherLogout() {
+  function handleStudentLogin(studentData) {
+    // Clear teacher session to guarantee complete isolation!
+    localStorage.removeItem("tr_role");
+    localStorage.removeItem("tr_token");
     localStorage.removeItem("tr_teacher_token");
+    sessionStorage.setItem("tr_role", "student");
+    sessionStorage.setItem("tr_student", JSON.stringify(studentData));
+    setRole("student");
+    setStudentSession(studentData);
     setTeacher(null);
-    setCurrentView("landing");
+    setActiveRoomId(null);
   }
 
-  function handleSelectClassroom(roomId) {
-    setActiveRoomId(roomId);
-    setCurrentView("register");
+  function handleLogout() {
+    localStorage.removeItem("tr_role");
+    localStorage.removeItem("tr_token");
+    localStorage.removeItem("tr_teacher_token");
+    sessionStorage.clear();
+    setRole(null);
+    setTeacher(null);
+    setStudentSession(null);
+    setActiveRoomId(null);
+  }
+
+  function handleNavigateHome() {
+    if (role === "teacher") {
+      setActiveRoomId(null);
+    }
+  }
+
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xs text-gray-500 font-sans">
+        Loading...
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col font-sans selection:bg-emerald-200">
+    <div className="min-h-screen bg-stone-50 flex flex-col font-sans">
       <Navbar
-        currentView={currentView}
-        setView={setCurrentView}
+        role={role}
         teacher={teacher}
-        onLogout={handleTeacherLogout}
-        onOpenTeacherAuth={() => setIsAuthModalOpen(true)}
+        studentSession={studentSession}
+        onNavigateHome={handleNavigateHome}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1">
-        {currentView === "landing" && (
-          <LandingPage
-            setView={setCurrentView}
-            teacher={teacher}
-            onOpenTeacherAuth={() => setIsAuthModalOpen(true)}
+        {/* If Logged Out: Show AuthPortal */}
+        {role === null && (
+          <AuthPortal
+            onTeacherLogin={handleTeacherLogin}
+            onStudentLogin={handleStudentLogin}
           />
         )}
 
-        {currentView === "teacher" && (
-          <TeacherDashboard
-            teacher={teacher}
-            onSelectClassroom={handleSelectClassroom}
-          />
+        {/* If Logged In as Teacher */}
+        {role === "teacher" && (
+          <>
+            {activeRoomId ? (
+              <ClassroomRegister
+                roomId={activeRoomId}
+                onBack={() => setActiveRoomId(null)}
+              />
+            ) : (
+              <TeacherDashboard
+                teacher={teacher}
+                onSelectClassroom={(rId) => setActiveRoomId(rId)}
+              />
+            )}
+          </>
         )}
 
-        {currentView === "register" && activeRoomId && (
-          <ClassroomRegister
-            roomId={activeRoomId}
-            onBack={() => setCurrentView("teacher")}
+        {/* If Logged In as Student */}
+        {role === "student" && (
+          <StudentPortal
+            studentSession={studentSession}
+            onLogout={handleLogout}
           />
         )}
-
-        {currentView === "student" && <StudentPortal />}
       </main>
-
-      <TeacherAuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={handleTeacherLoginSuccess}
-      />
     </div>
   );
 }

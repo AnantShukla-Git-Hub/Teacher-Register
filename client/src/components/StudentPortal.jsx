@@ -2,33 +2,17 @@ import React, { useState, useEffect } from "react";
 import { api } from "../api";
 import { socket } from "../socket";
 
-export default function StudentPortal() {
-  const [roomId, setRoomId] = useState("");
-  const [roomPassword, setRoomPassword] = useState("");
-  const [rollNo, setRollNo] = useState("");
-  const [studentSession, setStudentSession] = useState(null);
+export default function StudentPortal({ studentSession, onLogout }) {
   const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const saved = sessionStorage.getItem("tr_student_session");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setStudentSession(parsed);
-        fetchDashboard(parsed.room_id, parsed.student.roll_no);
-      } catch (e) {
-        sessionStorage.removeItem("tr_student_session");
-      }
-    }
-  }, []);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!studentSession) return;
 
     const rId = studentSession.room_id;
     const rNo = studentSession.student.roll_no;
+
+    fetchDashboard(rId, rNo);
 
     socket.emit("join_student_channel", { room_id: rId, roll_no: rNo });
 
@@ -49,103 +33,25 @@ export default function StudentPortal() {
       setDashboardData(data);
     } catch (err) {
       console.error("Dashboard error:", err);
-    }
-  }
-
-  async function handleLogin(e) {
-    e.preventDefault();
-    if (!roomId.trim() || !roomPassword.trim() || !rollNo.trim()) return;
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await api.studentLogin(roomId.trim(), roomPassword.trim(), rollNo.trim());
-      setStudentSession(res);
-      sessionStorage.setItem("tr_student_session", JSON.stringify(res));
-      await fetchDashboard(res.room_id, res.student.roll_no);
-    } catch (err) {
-      setError(err.message || "Invalid Room ID, Password, or Roll Number.");
     } finally {
       setLoading(false);
     }
   }
 
-  function handleLogout() {
-    setStudentSession(null);
-    setDashboardData(null);
-    sessionStorage.removeItem("tr_student_session");
-  }
-
-  // --- LOGIN SCREEN ---
   if (!studentSession) {
     return (
-      <div className="max-w-sm mx-auto py-12 px-4">
-        <div className="bg-white border border-gray-300 p-6 rounded shadow-xs space-y-4">
-          <div className="border-b border-gray-200 pb-3">
-            <h2 className="text-base font-bold text-gray-900">Student Portal</h2>
-            <p className="text-xs text-gray-600 mt-1">
-              Enter Room ID, Password, and your Roll Number.
-            </p>
-          </div>
-
-          {error && (
-            <div className="p-2.5 bg-red-50 text-red-700 border border-red-200 rounded text-xs">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-3 text-xs">
-            <div>
-              <label className="block text-gray-700 font-medium mb-1">Room ID</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. CSE-3A"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                className="w-full uppercase font-mono border border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 font-medium mb-1">Room Password</label>
-              <input
-                type="password"
-                required
-                placeholder="Classroom password"
-                value={roomPassword}
-                onChange={(e) => setRoomPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 font-medium mb-1">Roll Number</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 2500520100112"
-                value={rollNo}
-                onChange={(e) => setRollNo(e.target.value)}
-                className="w-full font-mono border border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-hidden"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition mt-1"
-            >
-              {loading ? "Checking..." : "View Attendance & Marks"}
-            </button>
-          </form>
-        </div>
+      <div className="max-w-md mx-auto my-12 p-6 bg-white border border-gray-300 rounded text-center text-xs">
+        <p className="text-gray-600 mb-3">No active student session.</p>
+        <button
+          onClick={onLogout}
+          className="px-4 py-2 bg-blue-600 text-white rounded font-medium"
+        >
+          Return to Login
+        </button>
       </div>
     );
   }
 
-  // --- DASHBOARD VIEW ---
   const stats = dashboardData?.stats;
   const isCompliant = stats?.is_compliant ?? true;
   const history = dashboardData?.history || [];
@@ -168,10 +74,10 @@ export default function StudentPortal() {
         </div>
 
         <button
-          onClick={handleLogout}
+          onClick={onLogout}
           className="px-3 py-1.5 border border-gray-300 bg-gray-50 hover:bg-gray-100 rounded text-gray-700 font-medium"
         >
-          Logout
+          Sign Out
         </button>
       </div>
 

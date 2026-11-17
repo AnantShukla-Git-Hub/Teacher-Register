@@ -6,7 +6,7 @@
 const API_BASE = "/api";
 
 function getAuthHeaders() {
-  const token = localStorage.getItem("tr_teacher_token");
+  const token = localStorage.getItem("tr_token") || localStorage.getItem("tr_teacher_token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -134,7 +134,7 @@ export const api = {
   getExportUrl: (room_id) => `${API_BASE}/classrooms/${encodeURIComponent(room_id)}/export`,
 
   getShortagePdfUrl: (room_id, threshold = 75) => {
-    const token = localStorage.getItem("tr_teacher_token") || "";
+    const token = localStorage.getItem("tr_token") || localStorage.getItem("tr_teacher_token") || "";
     return `${API_BASE}/classrooms/${encodeURIComponent(room_id)}/shortage-pdf?threshold=${encodeURIComponent(threshold)}&token=${encodeURIComponent(token)}`;
   },
 
