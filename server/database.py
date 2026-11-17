@@ -27,12 +27,19 @@ def init_db():
     CREATE TABLE IF NOT EXISTS teachers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL DEFAULT 'teacher123',
         name TEXT NOT NULL,
         title TEXT DEFAULT 'Prof.',
         google_id TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    # Ensure password column exists if table was created earlier
+    try:
+        cursor.execute("ALTER TABLE teachers ADD COLUMN password TEXT NOT NULL DEFAULT 'teacher123';")
+    except sqlite3.OperationalError:
+        pass
 
     # 2. Classrooms Table
     cursor.execute("""

@@ -47,19 +47,6 @@ export default function LandingPage({ setView, teacher, onOpenTeacherAuth }) {
           </button>
         </div>
       </div>
-
-      {/* College Info */}
-      <div className="border border-gray-300 bg-gray-50 p-4 rounded text-xs text-gray-700 space-y-1">
-        <div className="font-semibold text-gray-900">
-          Mini Project (ICS 354)
-        </div>
-        <div>
-          Department of Computer Science and Engineering, Institute of Engineering and Technology, Lucknow
-        </div>
-        <div className="text-gray-500 pt-1">
-          Guide: Ahmad Hasan | Submitted by: Anant Shukla, Harsh Vardhan Singh, Indresh Pratap Singh, Kunal Singh
-        </div>
-      </div>
     </div>
   );
 }

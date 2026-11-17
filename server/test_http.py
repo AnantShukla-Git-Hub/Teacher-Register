@@ -38,7 +38,7 @@ def run_http_tests():
         print("Testing Teacher Demo Login (POST /api/auth/teacher)...")
         auth_res = requests.post(
             f"{base_url}/api/auth/teacher",
-            json={"demo_name": "Dr. Ahmad Hasan", "demo_title": "Prof.", "demo_email": "ahmad.hasan@ietlucknow.ac.in"},
+            json={"email": "ahmad.hasan@ietlucknow.ac.in", "password": "teacher123", "name": "Dr. Ahmad Hasan", "title": "Prof."},
             timeout=5
         )
         assert auth_res.status_code == 200

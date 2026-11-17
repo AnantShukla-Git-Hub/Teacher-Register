@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { api } from "../api";
 
 export default function TeacherAuthModal({ isOpen, onClose, onLoginSuccess }) {
-  const [demoName, setDemoName] = useState("Dr. Ahmad Hasan");
-  const [demoTitle, setDemoTitle] = useState("Prof.");
-  const [demoEmail, setDemoEmail] = useState("ahmad.hasan@ietlucknow.ac.in");
+  const [email, setEmail] = useState("ahmad.hasan@ietlucknow.ac.in");
+  const [password, setPassword] = useState("teacher123");
+  const [name, setName] = useState("Dr. Ahmad Hasan");
+  const [title, setTitle] = useState("Prof.");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -12,20 +13,26 @@ export default function TeacherAuthModal({ isOpen, onClose, onLoginSuccess }) {
 
   async function handleLogin(e) {
     e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
       const res = await api.teacherAuth({
-        demo_name: demoName.trim(),
-        demo_title: demoTitle,
-        demo_email: demoEmail.trim(),
+        email: email.trim(),
+        password: password.trim(),
+        name: name.trim(),
+        title: title,
       });
       localStorage.setItem("tr_teacher_token", res.token);
       onLoginSuccess(res.teacher);
       onClose();
     } catch (err) {
-      setError(err.message || "Failed to sign in");
+      setError(err.message || "Failed to login. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -52,40 +59,56 @@ export default function TeacherAuthModal({ isOpen, onClose, onLoginSuccess }) {
 
         <form onSubmit={handleLogin} className="space-y-3 text-xs">
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Title</label>
-            <select
-              value={demoTitle}
-              onChange={(e) => setDemoTitle(e.target.value)}
-              className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden bg-white"
-            >
-              <option value="Prof.">Prof.</option>
-              <option value="Dr.">Dr.</option>
-              <option value="Er.">Er.</option>
-              <option value="Mr.">Mr.</option>
-              <option value="Ms.">Ms.</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-medium mb-1">Name</label>
-            <input
-              type="text"
-              required
-              value={demoName}
-              onChange={(e) => setDemoName(e.target.value)}
-              className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden"
-            />
-          </div>
-
-          <div>
             <label className="block text-gray-700 font-medium mb-1">Email</label>
             <input
               type="email"
               required
-              value={demoEmail}
-              onChange={(e) => setDemoEmail(e.target.value)}
+              placeholder="e.g. faculty@ietlucknow.ac.in"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden"
             />
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Password</label>
+            <input
+              type="password"
+              required
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="block text-gray-700 font-medium mb-1">Title</label>
+              <select
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden bg-white"
+              >
+                <option value="Prof.">Prof.</option>
+                <option value="Dr.">Dr.</option>
+                <option value="Er.">Er.</option>
+                <option value="Mr.">Mr.</option>
+                <option value="Ms.">Ms.</option>
+              </select>
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-gray-700 font-medium mb-1">Name</label>
+              <input
+                type="text"
+                required
+                placeholder="Faculty Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden"
+              />
+            </div>
           </div>
 
           <div className="flex space-x-2 pt-2">

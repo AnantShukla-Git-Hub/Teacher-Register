@@ -69,9 +69,13 @@ def record_failed_attempt(client_ip: str):
 # -------------------------------------------------------------
 class TeacherAuthRequest(BaseModel):
     credential: Optional[str] = None
-    demo_email: Optional[str] = "anant.shukla@ietlucknow.ac.in"
-    demo_name: Optional[str] = "Dr. Ahmad Hasan"
-    demo_title: Optional[str] = "Prof."
+    email: Optional[str] = None
+    password: Optional[str] = None
+    name: Optional[str] = None
+    title: Optional[str] = "Prof."
+    demo_email: Optional[str] = None
+    demo_name: Optional[str] = None
+    demo_title: Optional[str] = None
 
 class ProfileUpdateRequest(BaseModel):
     title: str
@@ -171,45 +175,50 @@ def calculate_student_stats(classroom_id: int, student_id: int, conn):
 @app.post("/api/auth/teacher")
 def authenticate_teacher(payload: TeacherAuthRequest):
     """
-    Authenticates teacher via Google OAuth or Demo login for viva presentations.
+    Authenticates teacher via Email & Password, or Google OAuth.
     """
     user_info = None
     if payload.credential:
         user_info = verify_google_token(payload.credential)
 
-    # If Google credential wasn't supplied or failed, fallback to demo/local login
-    if not user_info:
-        user_info = {
-            "email": payload.demo_email or "teacher@ietlucknow.ac.in",
-            "name": payload.demo_name or "Faculty Member",
-            "title": payload.demo_title or "Prof.",
-            "google_id": None
-        }
+    email = (payload.email or payload.demo_email or (user_info.get("email") if user_info else "")).strip().lower()
+    password = (payload.password or "teacher123").strip()
+    name = (payload.name or payload.demo_name or (user_info.get("name") if user_info else "Faculty Member")).strip()
+    title = (payload.title or payload.demo_title or "Prof.").strip()
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Teacher email is required.")
+    if not payload.credential and not payload.password:
+        raise HTTPException(status_code=400, detail="Teacher password is required.")
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, email, name, title FROM teachers WHERE email = ?", (user_info["email"],))
+    cursor.execute("SELECT id, email, password, name, title FROM teachers WHERE LOWER(email) = ?", (email,))
     teacher = cursor.fetchone()
 
     if teacher:
+        # Check password if not logging in via Google verified credential
+        if not payload.credential:
+            stored_pwd = teacher["password"] or "teacher123"
+            if stored_pwd != password:
+                conn.close()
+                raise HTTPException(status_code=401, detail="Invalid teacher password. Please try again.")
         teacher_id = teacher["id"]
         title = teacher["title"]
         name = teacher["name"]
     else:
         cursor.execute(
-            "INSERT INTO teachers (email, name, title, google_id) VALUES (?, ?, ?, ?)",
-            (user_info["email"], user_info["name"], user_info.get("title", "Prof."), user_info.get("google_id"))
+            "INSERT INTO teachers (email, password, name, title, google_id) VALUES (?, ?, ?, ?, ?)",
+            (email, password, name, title, user_info.get("google_id") if user_info else None)
         )
         conn.commit()
         teacher_id = cursor.lastrowid
-        title = user_info.get("title", "Prof.")
-        name = user_info["name"]
 
     conn.close()
 
     token = create_jwt_token({
         "teacher_id": teacher_id,
-        "email": user_info["email"],
+        "email": email,
         "name": name,
         "title": title
     })
@@ -218,7 +227,7 @@ def authenticate_teacher(payload: TeacherAuthRequest):
         "token": token,
         "teacher": {
             "id": teacher_id,
-            "email": user_info["email"],
+            "email": email,
             "name": name,
             "title": title
         }
