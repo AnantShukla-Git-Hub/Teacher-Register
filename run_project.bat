@@ -29,7 +29,7 @@ echo [3/3] Starting Unified FastAPI + Socket.IO Server...
 echo ---------------------------------------------------------------------
 echo  Application is running at: http://localhost:8000
 echo.
-echo  - Instructor Portal: Sign in with demo profile or Google
+echo  - Instructor Portal: Login or Register with your credentials
 echo  - Student Portal: Enter Room ID, Password, and Roll Number
 echo  - Live Socket.IO updates are active on channels
 echo ---------------------------------------------------------------------

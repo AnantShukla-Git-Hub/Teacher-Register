@@ -58,17 +58,36 @@ Open **`http://localhost:8000`** in your browser.
 
 ---
 
-## 🧪 Testing with Demo Data
-1. Click **Teacher Sign-In** on the top right.
-2. Select **"Enter Instructor Dashboard"** (pre-loaded with *Dr. Ahmad Hasan* profile).
-3. Open classroom **`CSE-3A`** (Password: `iet123`).
-4. Click **Import Roster** $\to$ upload or copy the provided `sample_roster.csv` in the root folder.
-5. In another tab or private window, go to **Student Portal**:
+## 🧪 Quick Walkthrough
+
+### 1. Teacher Registration & Classroom Creation
+1. Open `http://localhost:8000` (or your deployed URL).
+2. Under the **Teacher / Instructor** tab:
+   - Click **"Register New Account"** to create an instructor account with your name, academic title, email, and password.
+   - Or click **"Login"** if you already have an account.
+3. In the Teacher Dashboard, click **"+ Create New Classroom"**:
+   - Example Room ID: `CSE-3A`
+   - Classroom Name: `Web Engineering Mini Project`
+   - Classroom Password: `iet123`
+4. Click **"Open Register"** to enter the attendance ledger.
+5. Click **"Import Roster"** and upload or paste the provided **`students_70.csv`** (contains 70 enrolled students).
+
+### 2. Marking Attendance & Date Management
+- **Today's Attendance**: Click the **"+ Add Today (IST)"** button to instantly add a lecture column with the current Indian Standard Time date.
+- **Single-Click Stamps**: Click any cell to stamp **P** (Present), **A** (Absent), or **L** (Late).
+- **Date Editor**: Click any date header in the register table or use the Date Editor to inspect that day's lecture and use batch actions (**"Mark All Present"** / **"Mark All Absent"**).
+- **Shortage PDF Report**: Click **"Download Shortage PDF"**, enter the minimum required percentage (e.g., 75%), and generate an official printable shortage report with signature lines.
+- **Export Register**: Click **"Export CSV"** to download the full ledger into Excel.
+
+### 3. Student Portal & Real-Time Sync
+1. Open an incognito window or open the site on a mobile phone.
+2. Select the **Student Access** tab:
    - Room ID: `CSE-3A`
    - Room Password: `iet123`
-   - Roll No: `2500520100112` (Anant Shukla)
-6. Back in the teacher window, click the attendance stamp or edit midterm marks:
-   - Notice the student tab **updates live in real time without refreshing the page!**
+   - Roll Number: `2500520100112` (Anant Shukla)
+3. Click **"Enter Student Portal"**.
+4. Observe the AKTU 75% compliance indicator, lecture history, and continuous assessment marks.
+5. When the teacher marks attendance on the instructor window, the student's screen **updates live in real time via Socket.IO** without refreshing!
 
 ---
 
