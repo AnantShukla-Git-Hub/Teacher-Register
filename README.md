@@ -52,7 +52,7 @@ Double-click `run_project.bat` in the project root folder. It automatically veri
 .\venv\Scripts\activate
 
 # 2. Start the unified FastAPI + Socket.IO server
-uvicorn server.main:asgi_app --host 0.0.0.0 --port 8000 --reload
+uvicorn server.main:asgi_app --host 127.0.0.1 --port 8000 --reload
 ```
 Open **`http://localhost:8000`** in your browser.
 

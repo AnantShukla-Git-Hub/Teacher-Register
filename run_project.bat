@@ -35,5 +35,5 @@ echo  - Live Socket.IO updates are active on channels
 echo ---------------------------------------------------------------------
 echo.
 
-venv\Scripts\python.exe -m uvicorn server.main:asgi_app --host 0.0.0.0 --port 8000 --reload
+venv\Scripts\python.exe -m uvicorn server.main:asgi_app --host 127.0.0.1 --port 8000 --reload
 pause

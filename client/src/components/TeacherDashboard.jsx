@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Users, Calendar, ArrowRight, Trash2, Copy, Check, Key, BookOpen, AlertCircle, RefreshCw } from "lucide-react";
 import { api } from "../api";
 
 export default function TeacherDashboard({ teacher, onSelectClassroom }) {
@@ -13,7 +12,6 @@ export default function TeacherDashboard({ teacher, onSelectClassroom }) {
   const [roomName, setRoomName] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
   const [creating, setCreating] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     loadClassrooms();
@@ -53,7 +51,7 @@ export default function TeacherDashboard({ teacher, onSelectClassroom }) {
   }
 
   async function handleDeleteClassroom(rId) {
-    if (!window.confirm(`Are you sure you want to delete classroom ${rId}? All attendance and marks records will be deleted.`)) {
+    if (!window.confirm(`Delete classroom ${rId}? All records will be removed.`)) {
       return;
     }
     try {
@@ -64,148 +62,73 @@ export default function TeacherDashboard({ teacher, onSelectClassroom }) {
     }
   }
 
-  function copyToClipboard(text, id) {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  }
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Dashboard Top Banner */}
-      <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-300 pb-4 gap-3">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-            Instructor Portal
-          </span>
-          <h1 className="text-2xl font-bold text-stone-900 mt-2">
-            Welcome, {teacher?.title} {teacher?.name}
-          </h1>
-          <p className="text-xs text-stone-500 mt-0.5">
-            Manage your courses, take classroom attendance, and grade continuous assessments.
+          <h1 className="text-xl font-bold text-gray-900">Instructor Dashboard</h1>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Faculty: {teacher?.title} {teacher?.name} ({teacher?.email})
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={loadClassrooms}
-            className="p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition border border-stone-200"
-            title="Refresh Classrooms"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Classroom</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition self-start sm:self-auto"
+        >
+          + Create New Classroom
+        </button>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center space-x-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+        <div className="p-3 bg-red-100 text-red-800 border border-red-300 rounded text-xs">
+          {error}
         </div>
       )}
 
-      {/* Classrooms Grid */}
+      {/* Classrooms List */}
       {loading ? (
-        <div className="text-center py-16 text-stone-400 text-xs">
-          Loading your classrooms...
-        </div>
+        <div className="text-center py-12 text-gray-500 text-xs">Loading classrooms...</div>
       ) : classrooms.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-stone-200 max-w-md mx-auto">
-          <div className="w-12 h-12 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center mx-auto mb-3">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-bold text-stone-800 mb-1">No Classrooms Yet</h3>
-          <p className="text-xs text-stone-500 mb-5 leading-relaxed">
-            Create your first classroom room to import your student roster and open the attendance ledger.
-          </p>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition"
-          >
-            Create Classroom
-          </button>
+        <div className="border border-gray-300 bg-white p-8 text-center rounded text-xs text-gray-600 space-y-3">
+          <p className="font-semibold text-gray-800">No classrooms created yet.</p>
+          <p>Click the "Create New Classroom" button above to add your first room.</p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
           {classrooms.map((cls) => (
             <div
               key={cls.id}
-              className="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs hover:shadow-md transition flex flex-col justify-between"
+              className="bg-white border border-gray-300 p-4 rounded flex flex-col justify-between space-y-3 hover:border-gray-400"
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 bg-stone-100 text-stone-800 rounded-md border border-stone-200">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-xs bg-gray-100 px-2 py-0.5 rounded border border-gray-300">
                     {cls.room_id}
                   </span>
                   <button
                     onClick={() => handleDeleteClassroom(cls.room_id)}
-                    className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                    className="text-xs text-red-600 hover:text-red-800"
                     title="Delete Classroom"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    Delete
                   </button>
                 </div>
 
-                <h3 className="font-bold text-base text-stone-900 mb-1 leading-snug">
-                  {cls.room_name}
-                </h3>
+                <h3 className="font-semibold text-sm text-gray-900 pt-1">{cls.room_name}</h3>
 
-                {/* Credentials reminder for students */}
-                <div className="my-3 p-2.5 bg-stone-50 rounded-lg border border-stone-200 text-[11px] text-stone-600 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-stone-500">Room Password:</span>
-                    <span className="font-mono font-semibold text-stone-800">{cls.room_password}</span>
-                  </div>
-                  <button
-                    onClick={() =>
-                      copyToClipboard(
-                        `Room ID: ${cls.room_id} | Password: ${cls.room_password}`,
-                        cls.room_id
-                      )
-                    }
-                    className="w-full mt-1.5 pt-1 border-t border-stone-200 flex items-center justify-center space-x-1 text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold"
-                  >
-                    {copiedId === cls.room_id ? (
-                      <>
-                        <Check className="w-3 h-3 text-emerald-600" />
-                        <span>Credentials Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3" />
-                        <span>Copy Login Info for Students</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Metrics */}
-                <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-stone-500">
-                  <div className="flex items-center space-x-1.5 bg-stone-50 p-2 rounded-lg border border-stone-150">
-                    <Users className="w-3.5 h-3.5 text-stone-400" />
-                    <span>{cls.student_count} Students</span>
-                  </div>
-                  <div className="flex items-center space-x-1.5 bg-stone-50 p-2 rounded-lg border border-stone-150">
-                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                    <span>{cls.session_count} Lectures</span>
-                  </div>
+                <div className="text-xs text-gray-600 pt-1 border-t border-gray-100 space-y-0.5">
+                  <div>Password: <span className="font-mono text-gray-800">{cls.room_password}</span></div>
+                  <div>Students: <span className="font-medium text-gray-800">{cls.student_count}</span> | Lectures: <span className="font-medium text-gray-800">{cls.session_count}</span></div>
                 </div>
               </div>
 
-              {/* Action */}
               <button
                 onClick={() => onSelectClassroom(cls.room_id)}
-                className="mt-5 w-full py-2.5 bg-stone-900 hover:bg-black text-white text-xs font-semibold rounded-xl shadow-xs transition flex items-center justify-center space-x-2"
+                className="w-full py-1.5 bg-gray-800 hover:bg-black text-white text-xs font-medium rounded transition"
               >
-                <span>Open Register Sheet</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                Open Register Sheet
               </button>
             </div>
           ))}
@@ -214,81 +137,71 @@ export default function TeacherDashboard({ teacher, onSelectClassroom }) {
 
       {/* Create Classroom Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-stone-200 overflow-hidden">
-            <div className="px-6 py-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-              <h3 className="font-bold text-sm text-stone-900">Create New Classroom</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded border border-gray-400 max-w-sm w-full p-5 space-y-4 shadow-md text-xs">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+              <h3 className="font-bold text-gray-900 text-sm">Create New Classroom</h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-stone-400 hover:text-stone-700"
+                className="text-gray-500 hover:text-black font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateClassroom} className="p-6 space-y-4">
+            <form onSubmit={handleCreateClassroom} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">
+                <label className="block text-gray-700 font-medium mb-1">
                   Classroom / Course Name
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Design & Analysis of Algorithms (CS-302)"
+                  placeholder="e.g. Database Management Systems"
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  className="w-full text-xs border border-stone-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
+                  className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">
-                  Unique Room ID
-                </label>
+                <label className="block text-gray-700 font-medium mb-1">Room ID</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. CSE-3A or DAA-2026"
+                  placeholder="e.g. CSE-3A"
                   value={roomId}
                   onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                  className="w-full text-xs font-mono uppercase border border-stone-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
+                  className="w-full uppercase font-mono border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden"
                 />
-                <p className="text-[10px] text-stone-400 mt-1">
-                  Students will use this Room ID to find your register.
-                </p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">
-                  Room Password
-                </label>
+                <label className="block text-gray-700 font-medium mb-1">Room Password</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. iet2026"
+                  placeholder="e.g. iet123"
                   value={roomPassword}
                   onChange={(e) => setRoomPassword(e.target.value)}
-                  className="w-full text-xs border border-stone-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
+                  className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:outline-hidden"
                 />
-                <p className="text-[10px] text-stone-400 mt-1">
-                  Prevents unauthorized students outside this section from entering.
-                </p>
               </div>
 
-              <div className="flex space-x-3 pt-2">
+              <div className="flex space-x-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 py-2 text-xs font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg transition"
+                  className="flex-1 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border border-gray-300 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="flex-1 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition shadow-xs"
+                  className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition"
                 >
-                  {creating ? "Creating..." : "Create Room"}
+                  {creating ? "Creating..." : "Save Classroom"}
                 </button>
               </div>
             </form>
